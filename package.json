@@ -10,8 +10,7 @@
   "scripts": {
     "start": "node src/index.js",
     "build": "node build.js",
-    "dist": "node dist/excel-mcp.js",
-    "setup": "node setup.js"
+    "dist": "node dist/excel-mcp.js"
   },
   "keywords": [
     "mcp",

@@ -16,14 +16,10 @@ const pythonPath = isWindows ? join(venvPath, 'Scripts', 'python.exe') : join(ve
 // Check if venv exists, if not run setup
 if (!existsSync(venvPath)) {
   console.log('🔧 First time setup required. Installing dependencies...\n');
-  const setup = spawn('node', [join(rootDir, 'setup.js')], { stdio: 'inherit' });
-  setup.on('close', (code) => {
-    if (code === 0) {
-      startServer();
-    } else {
-      process.exit(code);
-    }
-  });
+  console.log('Please run the setup script first:');
+  console.log(isWindows ? '  setup.bat' : '  ./setup.sh');
+  console.log('\nThen try running the server again.');
+  process.exit(1);
 } else {
   startServer();
 }

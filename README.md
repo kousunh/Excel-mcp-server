@@ -6,110 +6,116 @@ A Model Context Protocol (MCP) server that enables AI assistants to interact wit
 
 ## Prerequisites
 
+- **Windows OS** (Required for win32com usage)
+- **Microsoft Excel** installed
 - **Node.js** 18 or higher
-- **Python** 3.x
-- **xlwings** Python package
-- **Microsoft Excel** (Windows or macOS)
-
-*Note: This tool is optimized for Windows environments where Excel is most commonly used.*
+- **Python** 3.8 or higher
 
 ## Installation
 
-### Option 1: Quick Install with npx (Recommended)
+### 1. Clone the Repository
 
-For Windows PowerShell/Command Prompt:
+```bash
+git clone https://github.com/kousunh/excel-mcp-server.git
+cd excel-mcp-server
+```
+
+### 2. Run Setup Script
+
+The setup script will create a Python virtual environment and install all dependencies.
+
+**For Windows:**
 ```cmd
-npx github:kousunh/excel-mcp-server
+setup.bat
 ```
 
-For Windows PowerShell (alternative):
-```powershell
-npx github:kousunh/excel-mcp-server
-```
-
-This will automatically:
-- Create a Python virtual environment
-- Install all required Python packages (xlwings, pandas, numpy)
-- Start the MCP server
-
-### Option 2: From Source
-
-1. Clone the repository
-2. Install dependencies:
-   
-   For Windows PowerShell/Command Prompt:
-   ```cmd
-   npm install
-   npm run setup
-   ```
-   
-   The `npm run setup` command creates a virtual environment and installs Python packages.
-
-### Option 3: Manual Installation
-
-1. Download the repository
-2. Install Python dependencies:
-   
-   For Windows Command Prompt:
-   ```cmd
-   pip install xlwings pandas numpy
-   ```
-   
-   For Windows PowerShell:
-   ```powershell
-   pip install xlwings pandas numpy
-   ```
-
-## Configuration
-
-### Claude Code Setup
-
-#### Option 1: Using Claude Code MCP Add Command (Recommended)
-
-For Claude Code (Windows WSL/Linux/macOS):
+**For Linux/Mac (WSL):**
 ```bash
-claude mcp add excel-mcp -- npx -y github:kousunh/excel-mcp-server
+./setup.sh
 ```
 
-#### Option 2: Using Claude Code MCP Add-JSON Command
+The setup script will:
+- Create a Python virtual environment (`venv`)
+- Install Python dependencies (pywin32)
+- Install Node.js dependencies
+- Display configuration for Claude Desktop
 
-For Claude Code (Windows WSL/Linux/macOS):
-```bash
-claude mcp add-json excel-mcp '{
-  "command": "npx",
-  "args": [
-    "-y",
-    "github:kousunh/excel-mcp-server"
-  ]
-}'
+### 3. Configure Claude Desktop
+
+Add the server to Claude Desktop's configuration file.
+
+**Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+
+Add to the `mcpServers` section:
+
+```json
+{
+  "excel-mcp": {
+    "command": "node",
+    "args": [
+      "C:\\path\\to\\excel-mcp-server\\excel-mcp.js"
+    ],
+    "env": {},
+    "cwd": "C:\\path\\to\\excel-mcp-server"
+  }
+}
 ```
 
-#### Option 3: Manual Configuration (.mcp.json)
+Replace `C:\\path\\to\\excel-mcp-server` with your actual clone path.
 
-Create or edit `.mcp.json` file in your project root:
+### 4. Configure Cursor IDE
+
+If you're using Cursor IDE, you can add the MCP server to Cursor's configuration:
+
+**Windows**: `%USERPROFILE%\.cursor\mcp.json`
 
 ```json
 {
   "mcpServers": {
     "excel-mcp": {
-      "command": "npx",
+      "command": "node",
       "args": [
-        "-y",
-        "github:kousunh/excel-mcp-server"
+        "C:\\path\\to\\excel-mcp-server\\excel-mcp.js"
       ],
-      "env": {}
+      "env": {},
+      "cwd": "C:\\path\\to\\excel-mcp-server"
     }
   }
 }
 ```
 
-### Cursor Integration
+Replace `C:\\path\\to\\excel-mcp-server` with your actual clone path.
 
-If you're using Cursor IDE, you can also configure the MCP server through Cursor's settings:
+## Manual Setup (Alternative)
 
-1. Open Cursor settings
-2. Navigate to MCP configuration
-3. Add the Excel MCP server with the configuration above
+If the setup script doesn't work, you can set up manually:
+
+1. Create Python virtual environment:
+   ```bash
+   python -m venv venv
+   ```
+
+2. Activate the virtual environment:
+   
+   **Windows:**
+   ```cmd
+   venv\Scripts\activate
+   ```
+   
+   **Linux/Mac:**
+   ```bash
+   source venv/bin/activate
+   ```
+
+3. Install Python dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. Install Node.js dependencies:
+   ```bash
+   npm install
+   ```
 
 ## Usage
 
@@ -162,12 +168,27 @@ Start Excel and open a workbook before using. The server provides the following 
 ## Troubleshooting
 
 1. **Excel not found**: Ensure Excel is running with at least one workbook open
-2. **VBA errors**: Check Excel's macro security settings
-3. **Permission errors**: Some operations require "Trust access to the VBA project object model" to be enabled in Excel
+2. **Python not found**: Ensure Python 3.8+ is installed and in PATH
+3. **Import errors**: Re-run setup script or manually install dependencies
+4. **VBA errors**: Check Excel's macro security settings
+5. **Permission errors**: Some operations require "Trust access to the VBA project object model" to be enabled
+
+## Development
+
+To contribute or make modifications:
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
 ## Security Notes
 
 - The server only operates on local Excel files
 - VBA code is executed in temporary modules that are deleted after execution
+- Python virtual environment isolates dependencies
+
 ## License
 
 MIT
