@@ -1,0 +1,28 @@
+{
+  "name": "excel-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for Excel operations including VBA execution, data reading, and formatting via xlwings",
+  "main": "src/index.js",
+  "type": "module",
+  "bin": {
+    "excel-mcp": "./bin/excel-mcp.js"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "build": "node build.js",
+    "dist": "node dist/excel-mcp.js",
+    "setup": "node setup.js"
+  },
+  "keywords": [
+    "mcp",
+    "excel",
+    "vba",
+    "xlwings"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.5.0",
+    "zod": "^3.22.4"
+  }
+}
