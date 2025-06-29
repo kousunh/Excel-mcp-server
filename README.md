@@ -1,15 +1,29 @@
-# Excel MCP Server
+# Excel MCP Server v2.0
 
 *[日本語 README](README_ja.md)*
 
-> Currently working on stabilizing the tool. If you encounter any strange behavior with any of the tools, please let me know via [Issues](https://github.com/kousunh/excel-mcp-server/issues).
+> **Version 2.0** - Now with advanced formatting, border controls, and prioritized workflow tools!
 
-MCP (Model Context Protocol) server for Excel operations. Performs various Excel operations including data reading, formatting, and VBA execution via xlwings.
+A comprehensive Model Context Protocol (MCP) server for Microsoft Excel operations. Enables AI assistants to perform data analysis, cell editing, formatting, border styling, VBA execution, and complete worksheet management through a structured workflow.
+
+## Key Features
+
+### Prioritized Workflow Tools
+- **Step 1**: `01_first_analyze_excel_data` - MANDATORY first step for understanding data structure
+- **Final Step**: `zz_final_verify_layout_formats` - MANDATORY final verification of layout and formatting
+
+### Advanced Excel Operations
+- **Data Analysis & Reading** - Comprehensive sheet analysis with statistics
+- **Cell Editing** - Single cell or range editing with array support
+- **Formatting Control** - Font colors, background colors, text styles, alignment
+- **Border Management** - Complete border styling with multiple styles and colors
+- **VBA Execution** - Simplified and stable VBA code execution
+- **Workbook Management** - Multi-workbook handling and navigation
 
 ## Requirements
 
-- **Windows OS** (Required for win32com)
-- **Microsoft Excel** installed
+- **Windows OS** (Required for COM integration)
+- **Microsoft Excel** installed and running
 - **Node.js** 18 or higher
 - **Python** 3.8 or higher
 
@@ -22,38 +36,28 @@ git clone https://github.com/kousunh/excel-mcp-server.git
 cd excel-mcp-server
 ```
 
-### 2. Install dependencies
+### 2. Run setup script
 
-```bash
-npm install
-pip install -r scripts/requirements.txt
-```
+The setup script will create a Python virtual environment and install all dependencies.
 
-### 3. Setup (Windows)
-
-Run the setup script:
-
-```bash
+**Windows (Command Prompt):**
+```cmd
 setup.bat
 ```
 
-Or manually install Python dependencies:
-
-```bash
-pip install xlwings pandas openpyxl
+**Windows (PowerShell):**
+```powershell
+.\setup.bat
 ```
 
-## Usage
-
-### 1. Start MCP Server
-
+**Linux/Mac (WSL):**
 ```bash
-npm start
+./setup.sh
 ```
 
-### 2. Configure Claude Desktop
+### 3. Configure Claude Desktop
 
-Add the following to your `claude_desktop_config.json`:
+Add to your `claude_desktop_config.json`:
 
 ```json
 {
@@ -61,73 +65,116 @@ Add the following to your `claude_desktop_config.json`:
     "excel-mcp": {
       "command": "node",
       "args": ["C:/path/to/excel-mcp-server/src/index.js"],
-      "env": {}
+      "env": {},
+      "cwd": "C:/path/to/excel-mcp-server"
     }
   }
 }
 ```
 
-### 3. Example Usage
-
-Use prompts like these in your AI client:
-
-```
-Please perform the following Excel operations:
-- Enter "Hello World" in cell A1
-- Enter current date/time in cell B1  
-- Set yellow background color for range A1:B1
-```
-
 ## Available Tools
 
-### read_sheet_data (Recommended)
-Reads Excel sheet data and returns it in a structured format. **Always use this tool first when checking or analyzing data.**
+### Priority Tools (Use in Order)
 
-Parameters:
-- `startRow` (optional): Starting row (default: 1)
-- `endRow` (optional): Ending row (default: 100)
-- `workbookName` (optional): Workbook name
-- `sheetName` (optional): Sheet name
+#### `01_first_analyze_excel_data` - STEP 1 - ALWAYS USE FIRST
+Analyzes Excel data structure and content before any operations. Essential for understanding current state, sheet structure, data types, and content. Works with both open and closed files.
 
-Features:
-- Automatic Japanese text encoding correction
-- Includes data statistics
-- Automatic header row detection
-- Automatic removal of empty rows/columns
+#### `zz_final_verify_layout_formats` - FINAL STEP - MANDATORY VERIFICATION
+Validates layout and formatting after any changes. Use multiple times to check different ranges. If layout/format issues found, fix and re-verify.
 
-### execute_vba
-Executes VBA code.
+### Core Operations
 
-Parameters:
-- `vbaCode` (required): VBA code to execute
-- `moduleName` (optional): Module name (default: TempModule)
-- `procedureName` (optional): Procedure name (default: Main)
+#### `edit_cells`
+Edit single cells or ranges with optimized performance for large data operations.
 
-Features:
-- Automatic retry functionality (up to 1 attempt)
-- Automatic module name change on error
+#### `set_cell_formats`
+Apply comprehensive formatting to cell ranges including font colors, background colors, bold, italic, underline, font size, font name, and text alignment.
 
-### get_cell_formats
-Gets cell formatting information.
+#### `set_cell_borders`
+Apply detailed border styling to cell ranges. Supports various border styles (thin, thick, medium, double, dotted, dashed) and colors for different positions (top, bottom, left, right, inside, outside).
 
-Parameters:
-- `startRow`, `startCol`: Starting position
-- `endRow`, `endCol`: Ending position (max 35 rows × 15 columns)
-- `workbookName` (optional): Workbook name
-- `sheetName` (optional): Sheet name
+### Utility Tools
 
-### edit_cells
-Edits cell values.
+#### `get_open_workbooks`
+Lists all currently open Excel workbooks.
 
-Parameters:
-- `range`: Cell range (e.g. "A1", "C9:C16")
-- `value`: Value to set (arrays automatically detect vertical/horizontal direction)
+#### `set_active_workbook`
+Switches between open workbooks.
 
-### get_excel_status
-Checks Excel status.
+#### `get_all_sheet_names`
+Lists all sheets in a workbook.
 
-## Notes
+#### `navigate_to_sheet`
+Switches to a specific sheet.
 
-- Excel must be running with at least one workbook open
-- VBA code is added as temporary modules and automatically deleted after execution
-- VBA execution may be restricted depending on security settings
+#### `get_excel_status`
+Checks if Excel is running and responsive.
+
+### Fallback Tool
+
+#### `fallback_execute_vba` - USE AS LAST RESORT
+Executes custom VBA code when dedicated tools are insufficient. Should only be used when other Excel tools cannot handle the specific operation.
+
+## Usage Examples
+
+### Basic Workflow
+```
+1. "First, analyze the current Excel data structure"
+2. "Edit cells A1:C3 with employee data"
+3. "Set borders around the data range"
+4. "Apply formatting with bold headers and colored backgrounds"
+5. "Finally, verify the layout and formatting"
+```
+
+### Data Operations
+```
+"Analyze the sales data in workbook 'Sales2024.xlsx'"
+"Edit range A1:D10 with quarterly sales figures"
+"Apply borders to create a table structure"
+"Format headers with bold font and blue background"
+"Verify the final layout looks correct"
+```
+
+## Workflow Best Practices
+
+1. **Always start** with `01_first_analyze_excel_data` to understand current state
+2. **Use dedicated tools** (edit_cells, set_cell_formats, set_cell_borders) instead of VBA when possible
+3. **Always end** with `zz_final_verify_layout_formats` to confirm changes
+4. **Use fallback_execute_vba** only when other tools cannot handle the specific operation
+5. **Verify multiple ranges** if working with large spreadsheets
+
+## Troubleshooting
+
+1. **Excel not found**: Ensure Excel is running with at least one workbook open
+2. **Tool timeouts**: Large operations automatically use extended timeouts (60 seconds)
+3. **VBA errors**: Simplified VBA execution reduces hanging and freezing issues
+4. **Format verification**: Use verification tool multiple times for different ranges
+5. **Permission errors**: Enable "Trust access to the VBA project object model" in Excel Trust Center
+
+## Security
+
+- Server operates only on local Excel files
+- VBA code runs in temporary modules that are automatically deleted
+- Python virtual environment isolates dependencies
+- No network access or external file operations
+
+## License
+
+MIT License - see LICENSE file for details.
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly with Excel operations
+5. Submit a pull request
+
+---
+
+**Version 2.0 Changes:**
+- Added prioritized workflow tools with clear naming
+- Implemented comprehensive formatting and border controls
+- Optimized performance for large data operations
+- Simplified and stabilized VBA execution
+- Added mandatory verification step for quality assurance

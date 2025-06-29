@@ -7,7 +7,7 @@ export class ToolHandlers {
     this.scriptsPath = scriptsPath;
   }
 
-  executePython(scriptName, args = []) {
+  executePython(scriptName, args = [], timeout = 30000) {
     return new Promise((resolve) => {
       const scriptPath = join(this.scriptsPath, scriptName);
       const pythonCmd = process.env.EXCEL_MCP_PYTHON || 'python';
@@ -16,6 +16,18 @@ export class ToolHandlers {
       });
       let output = '';
       let error = '';
+      let isResolved = false;
+      
+      // Set timeout for long-running operations
+      const timeoutId = setTimeout(() => {
+        if (!isResolved) {
+          isResolved = true;
+          python.kill('SIGTERM');
+          resolve({
+            content: [{ type: 'text', text: `{"error": "Script execution timeout after ${timeout}ms"}` }]
+          });
+        }
+      }, timeout);
       
       python.stdout.setEncoding('utf8');
       python.stderr.setEncoding('utf8');
@@ -24,16 +36,24 @@ export class ToolHandlers {
       python.stderr.on('data', (data) => error += data);
       
       python.on('close', (code) => {
-        const result = output.trim() || (code !== 0 ? `{"error": "${error || 'Script failed'}"}` : '{"error": "No output"}');
-        resolve({
-          content: [{ type: 'text', text: result }]
-        });
+        if (!isResolved) {
+          isResolved = true;
+          clearTimeout(timeoutId);
+          const result = output.trim() || (code !== 0 ? `{"error": "${error || 'Script failed'}"}` : '{"error": "No output"}');
+          resolve({
+            content: [{ type: 'text', text: result }]
+          });
+        }
       });
       
       python.on('error', (err) => {
-        resolve({
-          content: [{ type: 'text', text: `{"error": "Python process error: ${err.message}"}` }]
-        });
+        if (!isResolved) {
+          isResolved = true;
+          clearTimeout(timeoutId);
+          resolve({
+            content: [{ type: 'text', text: `{"error": "Python process error: ${err.message}"}` }]
+          });
+        }
       });
     });
   }
@@ -48,7 +68,7 @@ export class ToolHandlers {
   }
 
   async executeVBA(args) {
-    const validated = schemas.executeVBA.parse(args);
+    const validated = schemas.fallbackExecuteVBA.parse(args);
     const { vbaCode, workbookName, moduleName = 'TempModule', procedureName = 'Main', sheetName } = validated;
     
     const pythonArgs = [
@@ -86,11 +106,12 @@ export class ToolHandlers {
     pythonArgs.push('--filename', validated.workbookName);
     if (validated.sheetName) pythonArgs.push('--sheet', validated.sheetName);
     
-    return this.executePython('edit_cells.py', pythonArgs);
+    // Use longer timeout for large data operations
+    return this.executePython('edit_cells.py', pythonArgs, 60000);
   }
 
   async getCellFormats(args) {
-    const validated = schemas.getCellFormats.parse(args);
+    const validated = schemas.finalVerifyLayoutFormats.parse(args);
     const pythonArgs = [];
     if (validated.startRow) pythonArgs.push('--start-row', String(validated.startRow));
     if (validated.startCol) pythonArgs.push('--start-col', String(validated.startCol));
@@ -103,7 +124,7 @@ export class ToolHandlers {
   }
 
   async analyzeExcelData(args) {
-    const validated = schemas.analyzeExcelData.parse(args);
+    const validated = schemas.firstAnalyzeExcelData.parse(args);
     const pythonArgs = [];
     
     // Add file path or workbook name
@@ -120,5 +141,25 @@ export class ToolHandlers {
     if (validated.mode) pythonArgs.push('--mode', validated.mode);
     
     return this.executePython('analyze_excel_data.py', pythonArgs);
+  }
+
+  async setCellBorders(args) {
+    const validated = schemas.setCellBorders.parse(args);
+    const pythonArgs = ['--range', validated.range];
+    pythonArgs.push('--borders', JSON.stringify(validated.borders));
+    pythonArgs.push('--filename', validated.workbookName);
+    if (validated.sheetName) pythonArgs.push('--sheet', validated.sheetName);
+    
+    return this.executePython('set_cell_borders.py', pythonArgs);
+  }
+
+  async setCellFormats(args) {
+    const validated = schemas.setCellFormats.parse(args);
+    const pythonArgs = ['--range', validated.range];
+    pythonArgs.push('--format', JSON.stringify(validated.format));
+    pythonArgs.push('--filename', validated.workbookName);
+    if (validated.sheetName) pythonArgs.push('--sheet', validated.sheetName);
+    
+    return this.executePython('set_cell_formats.py', pythonArgs);
   }
 }

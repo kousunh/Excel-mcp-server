@@ -52,7 +52,7 @@ class ExcelVBAServer {
           return await this.handlers.getOpenWorkbooks();
         case 'set_active_workbook':
           return await this.handlers.setActiveWorkbook(args);
-        case 'execute_vba':
+        case 'fallback_execute_vba':
           return await this.handlers.executeVBA(args);
         case 'get_excel_status':
           return await this.handlers.getExcelStatus();
@@ -62,10 +62,14 @@ class ExcelVBAServer {
           return await this.handlers.navigateToSheet(args);
         case 'edit_cells':
           return await this.handlers.editCells(args);
-        case 'get_cell_formats':
+        case 'zz_final_verify_layout_formats':
           return await this.handlers.getCellFormats(args);
-        case 'analyze_excel_data':
+        case '01_first_analyze_excel_data':
           return await this.handlers.analyzeExcelData(args);
+        case 'set_cell_borders':
+          return await this.handlers.setCellBorders(args);
+        case 'set_cell_formats':
+          return await this.handlers.setCellFormats(args);
         default:
           throw new Error(`Unknown tool: ${name}`);
       }

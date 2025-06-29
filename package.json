@@ -1,20 +1,40 @@
 {
-  "name": "excel-mcp",
-  "version": "1.0.0",
-  "description": "MCP server for Excel operations including VBA execution, data reading, and formatting via xlwings",
+  "name": "excel-mcp-server",
+  "version": "2.0.0",
+  "description": "Advanced MCP server for Excel operations with comprehensive data analysis, formatting, border controls, and VBA execution support",
   "main": "src/index.js",
   "type": "module",
   "scripts": {
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "test": "echo \"No tests specified yet\" && exit 0"
   },
   "keywords": [
     "mcp",
     "excel",
     "vba",
-    "xlwings"
+    "xlwings",
+    "data-analysis",
+    "formatting",
+    "borders",
+    "automation",
+    "model-context-protocol",
+    "claude",
+    "ai-assistant"
   ],
   "author": "kousunh",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kousunh/excel-mcp-server.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kousunh/excel-mcp-server/issues"
+  },
+  "homepage": "https://github.com/kousunh/excel-mcp-server#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "os": ["win32"],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^0.5.0",
     "zod": "^3.22.4"
