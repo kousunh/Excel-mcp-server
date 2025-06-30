@@ -1,8 +1,4 @@
-# Excel MCP Server v2.0
-
 *[日本語 README](README_ja.md)*
-
-> **Version 2.0** - Now with advanced formatting, border controls, and prioritized workflow tools!
 
 A comprehensive Model Context Protocol (MCP) server for Microsoft Excel operations. Enables AI assistants to perform data analysis, cell editing, formatting, border styling, VBA execution, and complete worksheet management through a structured workflow.
 
