@@ -9,8 +9,8 @@ A comprehensive Model Context Protocol (MCP) server for Microsoft Excel operatio
 ## Key Features
 
 ### Prioritized Workflow Tools
-- **Step 1**: `01_first_analyze_excel_data` - MANDATORY first step for understanding data structure
-- **Final Step**: `zz_final_verify_layout_formats` - MANDATORY final verification of layout and formatting
+- **Step 1**: `essential_inspect_excel_data` - MANDATORY first step for understanding data structure
+- **Final Step**: `essential_check_excel_format` - MANDATORY final verification of layout and formatting
 
 ### Advanced Excel Operations
 - **Data Analysis & Reading** - Comprehensive sheet analysis with statistics
@@ -72,14 +72,31 @@ Add to your `claude_desktop_config.json`:
 }
 ```
 
+### 4. Configure Cursor
+
+Add to your Cursor settings:
+
+```json
+{
+  "mcpServers": {
+    "Excel-mcp": {
+      "command": "node",
+      "args": [
+        "C:\\path\\to\\excel-mcp-server\\src\\index.js"
+      ]
+    }
+  }
+}
+```
+
 ## Available Tools
 
 ### Priority Tools (Use in Order)
 
-#### `01_first_analyze_excel_data` - STEP 1 - ALWAYS USE FIRST
+#### `essential_inspect_excel_data` - STEP 1 - ALWAYS USE FIRST
 Analyzes Excel data structure and content before any operations. Essential for understanding current state, sheet structure, data types, and content. Works with both open and closed files.
 
-#### `zz_final_verify_layout_formats` - FINAL STEP - MANDATORY VERIFICATION
+#### `essential_check_excel_format` - FINAL STEP - MANDATORY VERIFICATION
 Validates layout and formatting after any changes. Use multiple times to check different ranges. If layout/format issues found, fix and re-verify.
 
 ### Core Operations
@@ -110,10 +127,10 @@ Switches to a specific sheet.
 #### `get_excel_status`
 Checks if Excel is running and responsive.
 
-### Fallback Tool
+### VBA Execution
 
-#### `fallback_execute_vba` - USE AS LAST RESORT
-Executes custom VBA code when dedicated tools are insufficient. Should only be used when other Excel tools cannot handle the specific operation.
+#### `execute_vba`
+Executes custom VBA code in Excel. Creates a temporary Sub procedure, executes it, and automatically cleans up. Supports error handling and unique procedure naming to avoid conflicts.
 
 ## Usage Examples
 
@@ -137,10 +154,10 @@ Executes custom VBA code when dedicated tools are insufficient. Should only be u
 
 ## Workflow Best Practices
 
-1. **Always start** with `01_first_analyze_excel_data` to understand current state
+1. **Always start** with `essential_inspect_excel_data` to understand current state
 2. **Use dedicated tools** (edit_cells, set_cell_formats, set_cell_borders) instead of VBA when possible
-3. **Always end** with `zz_final_verify_layout_formats` to confirm changes
-4. **Use fallback_execute_vba** only when other tools cannot handle the specific operation
+3. **Always end** with `essential_check_excel_format` to confirm changes
+4. **Use execute_vba** for custom VBA logic when standard tools are insufficient
 5. **Verify multiple ranges** if working with large spreadsheets
 
 ## Troubleshooting

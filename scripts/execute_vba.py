@@ -43,23 +43,68 @@ def parse_vba_code(vba_code):
     
     return False, None, clean_code
 
+def get_unique_procedure_name(wb, base_name):
+    """Generate unique procedure name by checking existing procedures"""
+    existing_names = set()
+    
+    try:
+        for comp in wb.api.VBProject.VBComponents:
+            if comp.Type == 1:  # Standard module
+                try:
+                    code_module = comp.CodeModule
+                    for i in range(1, code_module.CountOfLines + 1):
+                        line = code_module.Lines(i, 1)
+                        if line.strip().startswith('Sub '):
+                            # Extract procedure name
+                            match = re.search(r'Sub\s+(\w+)', line, re.IGNORECASE)
+                            if match:
+                                existing_names.add(match.group(1).lower())
+                except:
+                    continue
+    except:
+        pass
+    
+    # Generate unique name
+    if base_name.lower() not in existing_names:
+        return base_name
+    
+    counter = 2
+    while f"{base_name}({counter})".lower() in existing_names:
+        counter += 1
+    
+    return f"{base_name}({counter})"
+
 def execute_vba_simple(app, wb, vba_code, final_module_name, final_procedure_name):
-    """Simple VBA execution without complex monitoring"""
+    """Simple VBA execution with Sub procedure creation"""
     vba_module = None
     
     try:
+        # Get unique procedure name
+        unique_proc_name = get_unique_procedure_name(wb, final_procedure_name)
+        
         # Create new module
         vba_module = wb.api.VBProject.VBComponents.Add(1)  # 1 = vbext_ct_StdModule
         vba_module.Name = final_module_name
         
+        # Wrap code in Sub procedure if not already wrapped
+        if not vba_code.strip().lower().startswith('sub '):
+            wrapped_code = f"Sub {unique_proc_name}()\nOn Error GoTo ErrorHandler\n{vba_code}\nExit Sub\nErrorHandler:\nErr.Raise Err.Number, Err.Source, Err.Description\nEnd Sub"
+        else:
+            # Replace the existing Sub name with unique name
+            wrapped_code = re.sub(r'Sub\s+\w+', f'Sub {unique_proc_name}', vba_code, count=1, flags=re.IGNORECASE)
+            # Add error handling if not present
+            if 'On Error' not in wrapped_code:
+                wrapped_code = wrapped_code.replace(f'Sub {unique_proc_name}()', f'Sub {unique_proc_name}()\nOn Error GoTo ErrorHandler')
+                wrapped_code = wrapped_code.replace('End Sub', 'Exit Sub\nErrorHandler:\nErr.Raise Err.Number, Err.Source, Err.Description\nEnd Sub')
+        
         # Add code to module
-        vba_module.CodeModule.AddFromString(vba_code)
+        vba_module.CodeModule.AddFromString(wrapped_code)
         
         # Execute the procedure
-        full_procedure_name = f"{final_module_name}.{final_procedure_name}"
+        full_procedure_name = f"{final_module_name}.{unique_proc_name}"
         wb.api.Application.Run(full_procedure_name)
         
-        return True, None
+        return True, None, unique_proc_name
         
     except Exception as e:
         error_info = {
@@ -67,10 +112,10 @@ def execute_vba_simple(app, wb, vba_code, final_module_name, final_procedure_nam
             "message": str(e),
             "details": "Error occurred during VBA execution"
         }
-        return False, error_info
+        return False, error_info, final_procedure_name
         
     finally:
-        # Clean up module
+        # Always clean up module, even on error
         try:
             if vba_module:
                 wb.api.VBProject.VBComponents.Remove(vba_module)
@@ -131,17 +176,20 @@ def execute_vba(vba_code, module_name='TempModule', procedure_name='Main', filen
                 final_code = clean_code
             
             # Execute VBA
-            success, error_info = execute_vba_simple(app, wb, final_code, final_module_name, final_procedure_name)
+            success, error_info, actual_proc_name = execute_vba_simple(app, wb, final_code, final_module_name, final_procedure_name)
             
             if success:
                 return {
                     "success": True,
-                    "message": f"VBA code executed successfully in procedure '{final_procedure_name}'"
+                    "message": f"VBA code executed successfully in procedure '{actual_proc_name}'",
+                    "procedure_name": actual_proc_name,
+                    "module_name": final_module_name
                 }
             else:
                 return {
                     "error": "VBA execution failed",
-                    "details": error_info
+                    "details": error_info,
+                    "procedure_name": actual_proc_name
                 }
         
         finally:

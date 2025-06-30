@@ -52,7 +52,7 @@ class ExcelVBAServer {
           return await this.handlers.getOpenWorkbooks();
         case 'set_active_workbook':
           return await this.handlers.setActiveWorkbook(args);
-        case 'fallback_execute_vba':
+        case 'execute_vba':
           return await this.handlers.executeVBA(args);
         case 'get_excel_status':
           return await this.handlers.getExcelStatus();
@@ -62,9 +62,9 @@ class ExcelVBAServer {
           return await this.handlers.navigateToSheet(args);
         case 'edit_cells':
           return await this.handlers.editCells(args);
-        case 'zz_final_verify_layout_formats':
+        case 'essential_check_excel_format':
           return await this.handlers.getCellFormats(args);
-        case '01_first_analyze_excel_data':
+        case 'essential_inspect_excel_data':
           return await this.handlers.analyzeExcelData(args);
         case 'set_cell_borders':
           return await this.handlers.setCellBorders(args);

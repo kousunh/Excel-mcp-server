@@ -9,8 +9,8 @@ Microsoft Excelとの包括的な連携を可能にするModel Context Protocol 
 ## 主要機能
 
 ### 優先順位付きワークフローツール
-- **ステップ1**: `01_first_analyze_excel_data` - データ構造理解のための必須最初ステップ
-- **最終ステップ**: `zz_final_verify_layout_formats` - レイアウトとフォーマットの必須最終確認
+- **ステップ1**: `essential_inspect_excel_data` - データ構造理解のための必須最初ステップ
+- **最終ステップ**: `essential_check_excel_format` - レイアウトとフォーマットの必須最終確認
 
 ### 高度なExcel操作
 - **データ分析・読み取り** - 統計情報付き包括的シート分析
@@ -72,14 +72,31 @@ setup.bat
 }
 ```
 
+### 4. Cursorの設定
+
+Cursorの設定に追加:
+
+```json
+{
+  "mcpServers": {
+    "Excel-mcp": {
+      "command": "node",
+      "args": [
+        "C:\\path\\to\\excel-mcp-server\\src\\index.js"
+      ]
+    }
+  }
+}
+```
+
 ## 利用可能ツール
 
 ### 優先ツール（順序に従って使用）
 
-#### `01_first_analyze_excel_data` - ステップ1 - 常に最初に使用
+#### `essential_inspect_excel_data` - ステップ1 - 常に最初に使用
 あらゆる操作前にExcelデータ構造と内容を分析します。現在の状態、シート構造、データタイプ、内容を理解するために必須。開いたファイルと閉じたファイルの両方で動作。
 
-#### `zz_final_verify_layout_formats` - 最終ステップ - 必須確認
+#### `essential_check_excel_format` - 最終ステップ - 必須確認
 あらゆる変更後にレイアウトとフォーマットを検証します。異なる範囲を確認するために複数回使用。レイアウト・フォーマット問題が見つかった場合は修正して再確認。
 
 ### コア操作
@@ -110,10 +127,10 @@ setup.bat
 #### `get_excel_status`
 Excelが実行中で応答しているかチェック。
 
-### フォールバックツール
+### VBA実行
 
-#### `fallback_execute_vba` - 最後の手段として使用
-専用ツールでは不十分な場合にカスタムVBAコードを実行。他のExcelツールが特定の操作を処理できない場合のみ使用。
+#### `execute_vba`
+ExcelでカスタムVBAコードを実行。一時的なSubプロシージャを作成・実行し、自動的にクリーンアップ。エラーハンドリングと重複回避の機能付き。
 
 ## 使用例
 
@@ -137,10 +154,10 @@ Excelが実行中で応答しているかチェック。
 
 ## ワークフローベストプラクティス
 
-1. **常に開始** `01_first_analyze_excel_data`で現在の状態を理解
+1. **常に開始** `essential_inspect_excel_data`で現在の状態を理解
 2. **専用ツールを使用** VBAではなく（edit_cells, set_cell_formats, set_cell_borders）を可能な限り使用
-3. **常に終了** `zz_final_verify_layout_formats`で変更を確認
-4. **fallback_execute_vbaは** 他のツールで特定の操作を処理できない場合のみ使用
+3. **常に終了** `essential_check_excel_format`で変更を確認
+4. **execute_vbaを使用** 標準ツールでは不十分な場合にカスタムVBAロジックで使用
 5. **複数範囲を確認** 大きなスプレッドシートで作業する場合
 
 ## トラブルシューティング

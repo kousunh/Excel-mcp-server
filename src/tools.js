@@ -103,7 +103,7 @@ export const schemas = {
 
 export const toolDefinitions = [
   {
-    name: '01_first_analyze_excel_data',
+    name: 'essential_inspect_excel_data',
     description: '🔍 STEP 1 - ALWAYS USE FIRST! Analyze Excel data structure and content before any operations. Essential for understanding current state, sheet structure, data types, and content. Works with both open and closed files. MANDATORY first step before editing, formatting, or other operations. Analysis modes: "full" (detailed analysis), "quick" (basic info), or "data" (content only).',
     inputSchema: {
       type: 'object',
@@ -161,14 +161,14 @@ export const toolDefinitions = [
     },
   },
   {
-    name: 'fallback_execute_vba',
-    description: '🔧 FALLBACK TOOL - Execute custom VBA code when other Excel tools cannot handle the specific operation. This tool should be used as a last resort when dedicated tools (like edit_cells, set_cell_borders, set_cell_formats, etc.) are insufficient. Executes VBA code directly with basic error handling. Avoid using MsgBox/Alert dialogs - use Debug.Print or cell output instead.',
+    name: 'execute_vba',
+    description: 'Execute custom VBA code in Excel. Creates a temporary Sub procedure, executes it, and automatically cleans up. Supports error handling and unique procedure naming to avoid conflicts. Use for operations that require custom VBA logic beyond the standard Excel tools.',
     inputSchema: {
       type: 'object',
       properties: {
         vbaCode: {
           type: 'string',
-          description: 'The VBA code to execute - should only be used when dedicated Excel tools cannot handle the specific operation'
+          description: 'The VBA code to execute. Will be wrapped in a Sub procedure automatically if not already structured.'
         },
         workbookName: {
           type: 'string',
@@ -262,7 +262,7 @@ export const toolDefinitions = [
     },
   },
   {
-    name: 'zz_final_verify_layout_formats',
+    name: 'essential_check_excel_format',
     description: '✅ FINAL STEP - MANDATORY layout and format verification! Validates visual appearance: cell formatting, colors, borders, fonts, and overall layout. ALWAYS use as LAST STEP after any editing, formatting, or border changes. Use multiple times to check different ranges. If layout/format issues found, fix and re-verify. Supports up to 35 rows x 15 columns per check.',
     inputSchema: {
       type: 'object',
