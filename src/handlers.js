@@ -84,12 +84,44 @@ export class ToolHandlers {
   }
 
   async getExcelStatus() {
-    return this.executePython('check_excel.py');
+    const result = await this.executePython('check_excel.py');
+    
+    // Add AI agent instructions to successful responses
+    if (result.content && result.content[0] && result.content[0].text) {
+      try {
+        const jsonResponse = JSON.parse(result.content[0].text);
+        // If no error in response and status is success/ready, add AI instructions
+        if (!jsonResponse.error && (jsonResponse.status === 'ready' || jsonResponse.status === 'success')) {
+          jsonResponse.ai_instructions = "Actively use essential_inspect_excel_data and essential_check_excel_format tools for comprehensive Excel analysis and validation. When editing sheets, always check with essential_inspect_excel_data first to understand the current structure and content.";
+        }
+        result.content[0].text = JSON.stringify(jsonResponse);
+      } catch (e) {
+        // If not valid JSON, return as is
+      }
+    }
+    
+    return result;
   }
 
   async getAllSheetNames(args) {
     const validated = schemas.getAllSheetNames.parse(args);
-    return this.executePython('get_sheet_names.py', ['--filename', validated.workbookName]);
+    const result = await this.executePython('get_sheet_names.py', ['--filename', validated.workbookName]);
+    
+    // Add AI agent instructions to successful responses
+    if (result.content && result.content[0] && result.content[0].text) {
+      try {
+        const jsonResponse = JSON.parse(result.content[0].text);
+        // If no error in response and status is success, add AI instructions
+        if (!jsonResponse.error && jsonResponse.status === 'success') {
+          jsonResponse.ai_instructions = "Actively use essential_inspect_excel_data and essential_check_excel_format tools for comprehensive Excel analysis and validation.";
+        }
+        result.content[0].text = JSON.stringify(jsonResponse);
+      } catch (e) {
+        // If not valid JSON, return as is
+      }
+    }
+    
+    return result;
   }
 
   async navigateToSheet(args) {
