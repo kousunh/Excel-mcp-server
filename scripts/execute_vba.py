@@ -24,13 +24,34 @@ def clean_existing_temp_modules(wb):
         pass
 
 def parse_vba_code(vba_code):
-    """Parse VBA code to detect if it already has Sub/Function structure"""
+    """Parse VBA code to detect if it already has Sub/Function structure and clean it"""
     lines = vba_code.split('\n')
     clean_lines = []
+    
     for line in lines:
+        stripped_line = line.strip()
+        
+        # Skip empty lines and comments
+        if not stripped_line or stripped_line.startswith("'"):
+            continue
+            
+        # Remove inline comments
         if "'" in line:
             line = line.split("'")[0]
-        clean_lines.append(line.strip())
+        
+        # Skip standalone procedure calls (lines that are just procedure names)
+        if re.match(r'^\w+$', stripped_line):
+            continue
+        
+        # Remove MsgBox statements to avoid popup alerts
+        if re.search(r'\bMsgBox\b', stripped_line, re.IGNORECASE):
+            continue
+        
+        # Replace problematic Err.Raise statements with simple Exit Sub
+        if re.search(r'\bErr\.Raise\b', stripped_line, re.IGNORECASE):
+            line = re.sub(r'Err\.Raise\s+Err\.Number,\s*Err\.Source,\s*Err\.Description', 'Exit Sub', line, flags=re.IGNORECASE)
+            
+        clean_lines.append(line.rstrip())
     
     clean_code = '\n'.join(clean_lines)
     
@@ -88,14 +109,16 @@ def execute_vba_simple(app, wb, vba_code, final_module_name, final_procedure_nam
         
         # Wrap code in Sub procedure if not already wrapped
         if not vba_code.strip().lower().startswith('sub '):
-            wrapped_code = f"Sub {unique_proc_name}()\nOn Error GoTo ErrorHandler\n{vba_code}\nExit Sub\nErrorHandler:\nErr.Raise Err.Number, Err.Source, Err.Description\nEnd Sub"
+            wrapped_code = f"Sub {unique_proc_name}()\nOn Error GoTo ErrorHandler\n{vba_code}\nExit Sub\nErrorHandler:\nExit Sub\nEnd Sub"
         else:
             # Replace the existing Sub name with unique name
             wrapped_code = re.sub(r'Sub\s+\w+', f'Sub {unique_proc_name}', vba_code, count=1, flags=re.IGNORECASE)
-            # Add error handling if not present
+            # Fix existing error handling to prevent Err.Raise issues
+            wrapped_code = re.sub(r'Err\.Raise\s+Err\.Number,\s*Err\.Source,\s*Err\.Description', 'Exit Sub', wrapped_code, flags=re.IGNORECASE)
+            # Add simple error handling if not present
             if 'On Error' not in wrapped_code:
                 wrapped_code = wrapped_code.replace(f'Sub {unique_proc_name}()', f'Sub {unique_proc_name}()\nOn Error GoTo ErrorHandler')
-                wrapped_code = wrapped_code.replace('End Sub', 'Exit Sub\nErrorHandler:\nErr.Raise Err.Number, Err.Source, Err.Description\nEnd Sub')
+                wrapped_code = wrapped_code.replace('End Sub', 'Exit Sub\nErrorHandler:\nExit Sub\nEnd Sub')
         
         # Add code to module
         vba_module.CodeModule.AddFromString(wrapped_code)

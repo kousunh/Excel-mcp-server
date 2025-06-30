@@ -162,7 +162,7 @@ export const toolDefinitions = [
   },
   {
     name: 'execute_vba',
-    description: 'Execute custom VBA code in Excel. Creates a temporary Sub procedure, executes it, and automatically cleans up. Supports error handling and unique procedure naming to avoid conflicts. Use for operations that require custom VBA logic beyond the standard Excel tools.',
+    description: 'Execute custom VBA code in Excel. Creates a temporary Sub procedure, executes it, and automatically cleans up. Supports error handling and unique procedure naming to avoid conflicts. MsgBox statements are automatically removed to prevent popup alerts.',
     inputSchema: {
       type: 'object',
       properties: {
