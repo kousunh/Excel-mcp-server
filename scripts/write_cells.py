@@ -7,28 +7,32 @@ import os
 
 sys.path.insert(0, os.path.dirname(__file__))
 from excel_utils import (
-    get_app, get_workbook, get_sheet,
-    open_file_writable, get_sheet_openpyxl,
+    get_app, get_workbook, get_sheet, open_path,
     set_performance_mode, restore_performance_mode, output_json
 )
 
 
-# ---------------------------------------------------------------------------
-# xlwings (live Excel)
-# ---------------------------------------------------------------------------
-
-def _write_live(workbook, cell_range, value, sheet):
+def _get_wb(workbook=None, path=None):
+    """Resolve workbook from either name or path. Returns (wb, was_opened, error)."""
+    if path:
+        return open_path(path)
     app, err = get_app()
     if err:
-        return {"error": err}
+        return None, False, err
     wb, err = get_workbook(app, workbook)
+    return wb, False, err
+
+
+def write_cells(workbook=None, path=None, cell_range=None, value=None, sheet=None):
+    wb, was_opened, err = _get_wb(workbook, path)
     if err:
         return {"error": err}
+
     ws, err = get_sheet(wb, sheet)
     if err:
         return {"error": err}
 
-    perf = set_performance_mode(app, True)
+    perf = set_performance_mode(wb.app, True)
     try:
         try:
             rng = ws.range(cell_range)
@@ -38,6 +42,8 @@ def _write_live(workbook, cell_range, value, sheet):
         rows, cols = rng.shape
         value = _reshape(value, rows, cols)
         rng.value = value
+
+        wb.save()
 
         return {
             "success": True,
@@ -49,69 +55,15 @@ def _write_live(workbook, cell_range, value, sheet):
     except Exception as e:
         return {"error": f"Failed to write: {e}"}
     finally:
-        restore_performance_mode(app, perf)
+        restore_performance_mode(wb.app, perf)
+        if was_opened:
+            try:
+                wb.close()
+            except Exception:
+                pass
 
-
-# ---------------------------------------------------------------------------
-# openpyxl (file-based)
-# ---------------------------------------------------------------------------
-
-def _write_file(path, cell_range, value, sheet):
-    wb, err = open_file_writable(path)
-    if err:
-        return {"error": err}
-
-    ws, err = get_sheet_openpyxl(wb, sheet)
-    if err:
-        wb.close()
-        return {"error": err}
-
-    try:
-        from openpyxl.utils import range_boundaries
-        min_col, min_row, max_col, max_row = range_boundaries(cell_range)
-    except Exception as e:
-        wb.close()
-        return {"error": f"Invalid range '{cell_range}': {e}"}
-
-    rows = max_row - min_row + 1
-    cols = max_col - min_col + 1
-
-    # Normalize value to 2D list
-    if not isinstance(value, list):
-        data = [[value]]
-    elif value and not isinstance(value[0], list):
-        if rows > 1 and cols == 1:
-            data = [[v] for v in value]
-        else:
-            data = [value]
-    else:
-        data = value
-
-    try:
-        for r_idx, row_data in enumerate(data):
-            for c_idx, val in enumerate(row_data):
-                ws.cell(row=min_row + r_idx, column=min_col + c_idx, value=val)
-        wb.save(path)
-    except Exception as e:
-        wb.close()
-        return {"error": f"Failed to write: {e}"}
-
-    wb.close()
-    return {
-        "success": True,
-        "path": path,
-        "sheet": ws.title,
-        "range": cell_range,
-        "size": f"{rows}x{cols}"
-    }
-
-
-# ---------------------------------------------------------------------------
-# shared
-# ---------------------------------------------------------------------------
 
 def _reshape(value, rows, cols):
-    """Adjust value shape for a target range."""
     if not isinstance(value, list):
         return value
     if value and not isinstance(value[0], list):
@@ -142,11 +94,7 @@ def main():
     except (json.JSONDecodeError, ValueError):
         value = args.value
 
-    if args.path:
-        result = _write_file(args.path, args.range, value, args.sheet)
-    else:
-        result = _write_live(args.workbook, args.range, value, args.sheet)
-
+    result = write_cells(args.workbook, args.path, args.range, value, args.sheet)
     output_json(result)
 
 

@@ -2,54 +2,15 @@
 
 import sys
 import json
+import os
 
 IS_WINDOWS = sys.platform == 'win32'
 IS_MAC = sys.platform == 'darwin'
 
 
 # ---------------------------------------------------------------------------
-# openpyxl helpers (file-based mode)
+# xlwings helpers
 # ---------------------------------------------------------------------------
-
-def open_file(path, read_only=False):
-    """Open an Excel file with openpyxl. Returns (wb, error)."""
-    import openpyxl
-    try:
-        wb = openpyxl.load_workbook(path, read_only=read_only, data_only=True)
-        return wb, None
-    except FileNotFoundError:
-        return None, f"File not found: {path}"
-    except Exception as e:
-        return None, f"Cannot open file: {e}"
-
-
-def open_file_writable(path):
-    """Open an Excel file for writing. Creates new file if not found."""
-    import openpyxl
-    import os
-    try:
-        if os.path.exists(path):
-            wb = openpyxl.load_workbook(path)
-        else:
-            wb = openpyxl.Workbook()
-        return wb, None
-    except Exception as e:
-        return None, f"Cannot open file: {e}"
-
-
-def get_sheet_openpyxl(wb, name=None):
-    """Get sheet from openpyxl workbook."""
-    if name:
-        if name in wb.sheetnames:
-            return wb[name], None
-        return None, f"Sheet '{name}' not found"
-    return wb.active, None
-
-
-# ---------------------------------------------------------------------------
-# xlwings helpers (live Excel mode)
-# ---------------------------------------------------------------------------
-
 
 def get_app():
     """Get active Excel application."""
@@ -63,6 +24,22 @@ def get_app():
     return app, None
 
 
+def get_or_create_app():
+    """Get active Excel app or launch a new one."""
+    import xlwings as xw
+    try:
+        app = xw.apps.active
+        if app is not None:
+            return app, False, None
+    except Exception:
+        pass
+    try:
+        app = xw.App(visible=True)
+        return app, True, None
+    except Exception as e:
+        return None, False, f"Cannot launch Excel: {e}"
+
+
 def get_workbook(app, name=None):
     """Get workbook by name or active workbook."""
     if name:
@@ -74,6 +51,40 @@ def get_workbook(app, name=None):
     if wb is None:
         return None, "No active workbook"
     return wb, None
+
+
+def open_path(path):
+    """Open a file path in Excel via xlwings.
+    If already open, returns that workbook.
+    Returns (wb, was_already_open, error)."""
+    import xlwings as xw
+    abspath = os.path.abspath(path)
+
+    # Check if already open in any Excel instance
+    try:
+        for app in xw.apps:
+            for book in app.books:
+                try:
+                    if os.path.abspath(book.fullname) == abspath:
+                        return book, True, None
+                except Exception:
+                    continue
+    except Exception:
+        pass
+
+    # Not open - get or create Excel app and open the file
+    if not os.path.exists(abspath):
+        return None, False, f"File not found: {abspath}"
+
+    app, _, err = get_or_create_app()
+    if err:
+        return None, False, err
+
+    try:
+        wb = app.books.open(abspath)
+        return wb, False, None
+    except Exception as e:
+        return None, False, f"Cannot open file: {e}"
 
 
 def get_sheet(wb, name=None):
@@ -126,8 +137,7 @@ def output_json(result):
 
 
 def set_performance_mode(app, enable):
-    """Toggle Excel performance mode (screen updating, calculation).
-    Returns original settings tuple or None if not supported."""
+    """Toggle Excel performance mode."""
     if not enable:
         return None
     try:

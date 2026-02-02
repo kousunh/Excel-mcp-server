@@ -46,7 +46,7 @@ export const toolDefinitions = [
       type: 'object',
       properties: {
         workbook: { type: 'string', description: 'Open workbook name (live Excel)' },
-        path: { type: 'string', description: 'File path to .xlsx file (no Excel needed)' },
+        path: { type: 'string', description: 'File path to .xlsx (opens in Excel)' },
         range: { type: 'string', description: 'Cell range (e.g. "A1" or "A1:C10")' },
         sheet: { type: 'string', description: 'Sheet name (default: active sheet)' },
         formats: { type: 'boolean', description: 'Include cell formatting (default: false)' }
@@ -56,12 +56,12 @@ export const toolDefinitions = [
   },
   {
     name: 'write_cells',
-    description: 'Write values to a cell or range. Use "workbook" for live Excel, or "path" for a file on disk. Accepts a single value, a flat array, or a 2D array. Note: path mode does not preserve images/charts in the file.',
+    description: 'Write values to a cell or range. Use "workbook" for live Excel, or "path" for a file on disk (opens in Excel). Accepts a single value, a flat array, or a 2D array.',
     inputSchema: {
       type: 'object',
       properties: {
         workbook: { type: 'string', description: 'Open workbook name (live Excel)' },
-        path: { type: 'string', description: 'File path to .xlsx file (no Excel needed)' },
+        path: { type: 'string', description: 'File path to .xlsx (opens in Excel)' },
         range: { type: 'string', description: 'Cell range (e.g. "A1" or "A1:B5")' },
         value: {
           oneOf: [{ type: 'string' }, { type: 'number' }, { type: 'boolean' }, { type: 'array' }],
@@ -74,12 +74,12 @@ export const toolDefinitions = [
   },
   {
     name: 'format_cells',
-    description: 'Apply formatting to cells. Use "workbook" for live Excel, or "path" for a file on disk. Options: bold, italic, underline, fontSize, fontName, fontColor, backgroundColor, textAlign (left/center/right), verticalAlign (top/middle/bottom), numberFormat, wrapText, borders ({top/bottom/left/right/inside/outside: {style, color}}). Note: path mode does not preserve images/charts in the file.',
+    description: 'Apply formatting to cells. Use "workbook" for live Excel, or "path" for a file on disk (opens in Excel). Options: bold, italic, underline, fontSize, fontName, fontColor, backgroundColor, textAlign (left/center/right), verticalAlign (top/middle/bottom), numberFormat, wrapText, borders ({top/bottom/left/right/inside/outside: {style, color}}).',
     inputSchema: {
       type: 'object',
       properties: {
         workbook: { type: 'string', description: 'Open workbook name (live Excel)' },
-        path: { type: 'string', description: 'File path to .xlsx file (no Excel needed)' },
+        path: { type: 'string', description: 'File path to .xlsx (opens in Excel)' },
         range: { type: 'string', description: 'Cell range (e.g. "A1:C3")' },
         format: {
           type: 'object',
