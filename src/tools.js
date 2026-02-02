@@ -56,7 +56,7 @@ export const toolDefinitions = [
   },
   {
     name: 'write_cells',
-    description: 'Write values to a cell or range. Use "workbook" for live Excel, or "path" for a file on disk. Accepts a single value, a flat array, or a 2D array.',
+    description: 'Write values to a cell or range. Use "workbook" for live Excel, or "path" for a file on disk. Accepts a single value, a flat array, or a 2D array. Note: path mode does not preserve images/charts in the file.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -74,7 +74,7 @@ export const toolDefinitions = [
   },
   {
     name: 'format_cells',
-    description: 'Apply formatting to cells. Use "workbook" for live Excel, or "path" for a file on disk. Options: bold, italic, underline, fontSize, fontName, fontColor, backgroundColor, textAlign (left/center/right), verticalAlign (top/middle/bottom), numberFormat, wrapText, borders ({top/bottom/left/right/inside/outside: {style, color}}).',
+    description: 'Apply formatting to cells. Use "workbook" for live Excel, or "path" for a file on disk. Options: bold, italic, underline, fontSize, fontName, fontColor, backgroundColor, textAlign (left/center/right), verticalAlign (top/middle/bottom), numberFormat, wrapText, borders ({top/bottom/left/right/inside/outside: {style, color}}). Note: path mode does not preserve images/charts in the file.',
     inputSchema: {
       type: 'object',
       properties: {
