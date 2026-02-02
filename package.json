@@ -1,25 +1,18 @@
 {
   "name": "excel-mcp-server",
-  "version": "2.0.0",
-  "description": "Advanced MCP server for Excel operations with comprehensive data analysis, formatting, border controls, and VBA execution support",
+  "version": "3.0.0",
+  "description": "Cross-platform MCP server for interacting with open Excel workbooks via xlwings",
   "main": "src/index.js",
   "type": "module",
   "scripts": {
-    "start": "node src/index.js",
-    "test": "echo \"No tests specified yet\" && exit 0"
+    "start": "node src/index.js"
   },
   "keywords": [
     "mcp",
     "excel",
-    "vba",
     "xlwings",
-    "data-analysis",
-    "formatting",
-    "borders",
     "automation",
-    "model-context-protocol",
-    "claude",
-    "ai-assistant"
+    "model-context-protocol"
   ],
   "author": "kousunh",
   "license": "MIT",
@@ -34,12 +27,8 @@
   "engines": {
     "node": ">=18.0.0"
   },
-  "os": ["win32"],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^0.5.0",
     "zod": "^3.22.4"
-  },
-  "devDependencies": {
-    "@types/node": "^20.0.0"
   }
 }
