@@ -2,14 +2,58 @@
 
 import sys
 import json
-import xlwings as xw
 
 IS_WINDOWS = sys.platform == 'win32'
 IS_MAC = sys.platform == 'darwin'
 
 
+# ---------------------------------------------------------------------------
+# openpyxl helpers (file-based mode)
+# ---------------------------------------------------------------------------
+
+def open_file(path, read_only=False):
+    """Open an Excel file with openpyxl. Returns (wb, error)."""
+    import openpyxl
+    try:
+        wb = openpyxl.load_workbook(path, read_only=read_only, data_only=True)
+        return wb, None
+    except FileNotFoundError:
+        return None, f"File not found: {path}"
+    except Exception as e:
+        return None, f"Cannot open file: {e}"
+
+
+def open_file_writable(path):
+    """Open an Excel file for writing. Creates new file if not found."""
+    import openpyxl
+    import os
+    try:
+        if os.path.exists(path):
+            wb = openpyxl.load_workbook(path)
+        else:
+            wb = openpyxl.Workbook()
+        return wb, None
+    except Exception as e:
+        return None, f"Cannot open file: {e}"
+
+
+def get_sheet_openpyxl(wb, name=None):
+    """Get sheet from openpyxl workbook."""
+    if name:
+        if name in wb.sheetnames:
+            return wb[name], None
+        return None, f"Sheet '{name}' not found"
+    return wb.active, None
+
+
+# ---------------------------------------------------------------------------
+# xlwings helpers (live Excel mode)
+# ---------------------------------------------------------------------------
+
+
 def get_app():
     """Get active Excel application."""
+    import xlwings as xw
     try:
         app = xw.apps.active
     except Exception as e:

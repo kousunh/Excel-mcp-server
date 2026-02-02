@@ -51,13 +51,21 @@ export class ToolHandlers {
     });
   }
 
+  _target(v) {
+    // Build --workbook or --path args from validated input
+    const a = [];
+    if (v.path) a.push('--path', v.path);
+    else if (v.workbook) a.push('--workbook', v.workbook);
+    return a;
+  }
+
   async getExcelInfo() {
     return this._run('excel_info.py');
   }
 
   async readCells(args) {
     const v = schemas.readCells.parse(args);
-    const a = ['--workbook', v.workbook, '--range', v.range];
+    const a = [...this._target(v), '--range', v.range];
     if (v.sheet) a.push('--sheet', v.sheet);
     if (v.formats) a.push('--formats');
     return this._run('read_cells.py', a);
@@ -66,14 +74,14 @@ export class ToolHandlers {
   async writeCells(args) {
     const v = schemas.writeCells.parse(args);
     const valueStr = typeof v.value === 'object' ? JSON.stringify(v.value) : String(v.value);
-    const a = ['--workbook', v.workbook, '--range', v.range, '--value', valueStr];
+    const a = [...this._target(v), '--range', v.range, '--value', valueStr];
     if (v.sheet) a.push('--sheet', v.sheet);
     return this._run('write_cells.py', a, 60000);
   }
 
   async formatCells(args) {
     const v = schemas.formatCells.parse(args);
-    const a = ['--workbook', v.workbook, '--range', v.range, '--format', JSON.stringify(v.format)];
+    const a = [...this._target(v), '--range', v.range, '--format', JSON.stringify(v.format)];
     if (v.sheet) a.push('--sheet', v.sheet);
     return this._run('format_cells.py', a);
   }

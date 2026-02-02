@@ -2,19 +2,22 @@ import { z } from 'zod';
 
 export const schemas = {
   readCells: z.object({
-    workbook: z.string(),
+    workbook: z.string().optional(),
+    path: z.string().optional(),
     range: z.string(),
     sheet: z.string().optional(),
     formats: z.boolean().optional()
   }),
   writeCells: z.object({
-    workbook: z.string(),
+    workbook: z.string().optional(),
+    path: z.string().optional(),
     range: z.string(),
     value: z.union([z.string(), z.number(), z.boolean(), z.array(z.any())]),
     sheet: z.string().optional()
   }),
   formatCells: z.object({
-    workbook: z.string(),
+    workbook: z.string().optional(),
+    path: z.string().optional(),
     range: z.string(),
     format: z.record(z.any()),
     sheet: z.string().optional()
@@ -38,25 +41,27 @@ export const toolDefinitions = [
   },
   {
     name: 'read_cells',
-    description: 'Read cell values from a range in an open workbook. Set formats=true to also get formatting details.',
+    description: 'Read cell values from a range. Use "workbook" for an open Excel workbook, or "path" for a file on disk. Set formats=true to include formatting details.',
     inputSchema: {
       type: 'object',
       properties: {
-        workbook: { type: 'string', description: 'Workbook name' },
+        workbook: { type: 'string', description: 'Open workbook name (live Excel)' },
+        path: { type: 'string', description: 'File path to .xlsx file (no Excel needed)' },
         range: { type: 'string', description: 'Cell range (e.g. "A1" or "A1:C10")' },
         sheet: { type: 'string', description: 'Sheet name (default: active sheet)' },
         formats: { type: 'boolean', description: 'Include cell formatting (default: false)' }
       },
-      required: ['workbook', 'range']
+      required: ['range']
     }
   },
   {
     name: 'write_cells',
-    description: 'Write values to a cell or range. Accepts a single value, a flat array (row), or a 2D array.',
+    description: 'Write values to a cell or range. Use "workbook" for live Excel, or "path" for a file on disk. Accepts a single value, a flat array, or a 2D array.',
     inputSchema: {
       type: 'object',
       properties: {
-        workbook: { type: 'string', description: 'Workbook name' },
+        workbook: { type: 'string', description: 'Open workbook name (live Excel)' },
+        path: { type: 'string', description: 'File path to .xlsx file (no Excel needed)' },
         range: { type: 'string', description: 'Cell range (e.g. "A1" or "A1:B5")' },
         value: {
           oneOf: [{ type: 'string' }, { type: 'number' }, { type: 'boolean' }, { type: 'array' }],
@@ -64,16 +69,17 @@ export const toolDefinitions = [
         },
         sheet: { type: 'string', description: 'Sheet name (default: active sheet)' }
       },
-      required: ['workbook', 'range', 'value']
+      required: ['range', 'value']
     }
   },
   {
     name: 'format_cells',
-    description: 'Apply formatting to cells: bold, italic, underline, fontSize, fontName, fontColor, backgroundColor, textAlign (left/center/right), verticalAlign (top/middle/bottom), numberFormat, wrapText, borders ({top/bottom/left/right/inside/outside: {style, color}}).',
+    description: 'Apply formatting to cells. Use "workbook" for live Excel, or "path" for a file on disk. Options: bold, italic, underline, fontSize, fontName, fontColor, backgroundColor, textAlign (left/center/right), verticalAlign (top/middle/bottom), numberFormat, wrapText, borders ({top/bottom/left/right/inside/outside: {style, color}}).',
     inputSchema: {
       type: 'object',
       properties: {
-        workbook: { type: 'string', description: 'Workbook name' },
+        workbook: { type: 'string', description: 'Open workbook name (live Excel)' },
+        path: { type: 'string', description: 'File path to .xlsx file (no Excel needed)' },
         range: { type: 'string', description: 'Cell range (e.g. "A1:C3")' },
         format: {
           type: 'object',
@@ -106,12 +112,12 @@ export const toolDefinitions = [
         },
         sheet: { type: 'string', description: 'Sheet name (default: active sheet)' }
       },
-      required: ['workbook', 'range', 'format']
+      required: ['range', 'format']
     }
   },
   {
     name: 'execute_vba',
-    description: 'Execute VBA code in a workbook. Code is wrapped in a Sub automatically if needed. MsgBox calls are stripped. Temp modules are cleaned up after execution.',
+    description: 'Execute VBA code in an open workbook. Code is wrapped in a Sub automatically if needed. MsgBox calls are stripped. Temp modules are cleaned up after execution.',
     inputSchema: {
       type: 'object',
       properties: {
