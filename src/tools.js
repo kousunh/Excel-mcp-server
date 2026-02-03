@@ -117,7 +117,7 @@ export const toolDefinitions = [
   },
   {
     name: 'execute_vba',
-    description: 'Execute VBA code in an open workbook. Code is wrapped in a Sub automatically if needed. MsgBox calls are stripped. Temp modules are cleaned up after execution.',
+    description: 'Execute VBA code in an open workbook (live Excel only, cannot use with closed files). Code is wrapped in a Sub automatically if needed. MsgBox calls are stripped. Temp modules are cleaned up after execution.',
     inputSchema: {
       type: 'object',
       properties: {
