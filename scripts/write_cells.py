@@ -7,27 +7,22 @@ import os
 
 sys.path.insert(0, os.path.dirname(__file__))
 from excel_utils import (
-    get_app, get_workbook, get_sheet, open_path,
+    get_app, get_workbook, get_sheet,
     set_performance_mode, restore_performance_mode, output_json
 )
 
 
-def _get_wb(workbook=None, path=None):
-    """Resolve workbook from either name or path. Returns (wb, was_opened, error)."""
-    if path:
-        return open_path(path)
+# ---------------------------------------------------------------------------
+# xlwings (live Excel / workbook mode)
+# ---------------------------------------------------------------------------
+
+def _write_live(workbook, cell_range, value, sheet):
     app, err = get_app()
     if err:
-        return None, False, err
+        return {"error": err}
     wb, err = get_workbook(app, workbook)
-    return wb, False, err
-
-
-def write_cells(workbook=None, path=None, cell_range=None, value=None, sheet=None):
-    wb, was_opened, err = _get_wb(workbook, path)
     if err:
         return {"error": err}
-
     ws, err = get_sheet(wb, sheet)
     if err:
         return {"error": err}
@@ -56,11 +51,47 @@ def write_cells(workbook=None, path=None, cell_range=None, value=None, sheet=Non
         return {"error": f"Failed to write: {e}"}
     finally:
         restore_performance_mode(wb.app, perf)
-        if was_opened:
-            try:
-                wb.close()
-            except Exception:
-                pass
+
+
+# ---------------------------------------------------------------------------
+# xlsx_io (file-based, pure Python ZIP/XML, no Excel needed)
+# ---------------------------------------------------------------------------
+
+def _write_file(path, cell_range, value, sheet):
+    from xlsx_io import XlsxFile, parse_range
+
+    if not os.path.exists(path):
+        return {"error": f"File not found: {path}"}
+
+    try:
+        xf = XlsxFile(path).open()
+    except Exception as e:
+        return {"error": f"Cannot open file: {e}"}
+
+    try:
+        sheet_name = sheet or xf.sheet_names[0]
+        if sheet_name not in xf.sheet_names:
+            return {"error": f"Sheet '{sheet_name}' not found"}
+
+        c1, r1, c2, r2 = parse_range(cell_range)
+        rows = r2 - r1 + 1
+        cols = c2 - c1 + 1
+        value_2d = _to_2d(value, rows, cols)
+
+        xf.write_values(sheet_name, cell_range, value_2d)
+        xf.save()
+
+        return {
+            "success": True,
+            "path": path,
+            "sheet": sheet_name,
+            "range": cell_range,
+            "size": f"{rows}x{cols}"
+        }
+    except Exception as e:
+        return {"error": f"Failed to write: {e}"}
+    finally:
+        xf.close()
 
 
 def _reshape(value, rows, cols):
@@ -74,6 +105,23 @@ def _reshape(value, rows, cols):
     elif value and isinstance(value[0], list):
         return [row[:cols] for row in value[:rows]]
     return value
+
+
+def _to_2d(value, rows, cols):
+    """Convert value to a 2D list for xlsx_io."""
+    if not isinstance(value, list):
+        return [[value] * cols for _ in range(rows)]
+    if value and not isinstance(value[0], list):
+        # Flat array
+        if rows > 1 and cols == 1:
+            return [[item] for item in value[:rows]]
+        elif rows == 1:
+            return [value[:cols]]
+        else:
+            return [value[:cols] for _ in range(rows)]
+    elif value and isinstance(value[0], list):
+        return [row[:cols] for row in value[:rows]]
+    return [[value]]
 
 
 def main():
@@ -94,7 +142,11 @@ def main():
     except (json.JSONDecodeError, ValueError):
         value = args.value
 
-    result = write_cells(args.workbook, args.path, args.range, value, args.sheet)
+    if args.path:
+        result = _write_file(args.path, args.range, value, args.sheet)
+    else:
+        result = _write_live(args.workbook, args.range, value, args.sheet)
+
     output_json(result)
 
 

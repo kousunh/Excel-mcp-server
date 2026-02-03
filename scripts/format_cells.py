@@ -7,15 +7,15 @@ import os
 
 sys.path.insert(0, os.path.dirname(__file__))
 from excel_utils import (
-    get_app, get_workbook, get_sheet, open_path,
+    get_app, get_workbook, get_sheet,
     hex_to_rgb_int, output_json, IS_WINDOWS
 )
 
-# Excel alignment constants
+# Excel alignment constants (for xlwings live mode)
 H_ALIGN = {'left': -4131, 'center': -4108, 'right': -4152}
 V_ALIGN = {'top': -4160, 'middle': -4108, 'bottom': -4107}
 
-# Excel border constants
+# Excel border constants (for xlwings live mode)
 BORDER_POSITIONS = {
     'left': 7, 'right': 10, 'top': 8, 'bottom': 9,
     'inside_vertical': 11, 'inside_horizontal': 12
@@ -32,21 +32,17 @@ def _parse_hex(hex_color):
     return (int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16))
 
 
-def _get_wb(workbook=None, path=None):
-    if path:
-        return open_path(path)
+# ---------------------------------------------------------------------------
+# xlwings (live Excel / workbook mode)
+# ---------------------------------------------------------------------------
+
+def _format_live(workbook, cell_range, fmt, sheet):
     app, err = get_app()
     if err:
-        return None, False, err
+        return {"error": err}
     wb, err = get_workbook(app, workbook)
-    return wb, False, err
-
-
-def format_cells(workbook=None, path=None, cell_range=None, fmt=None, sheet=None):
-    wb, was_opened, err = _get_wb(workbook, path)
     if err:
         return {"error": err}
-
     ws, err = get_sheet(wb, sheet)
     if err:
         return {"error": err}
@@ -115,7 +111,7 @@ def format_cells(workbook=None, path=None, cell_range=None, fmt=None, sheet=None
 
         # Borders
         if 'borders' in fmt:
-            _apply_borders(rng, fmt['borders'])
+            _apply_borders_live(rng, fmt['borders'])
 
         wb.save()
 
@@ -129,15 +125,8 @@ def format_cells(workbook=None, path=None, cell_range=None, fmt=None, sheet=None
     except Exception as e:
         return {"error": f"Failed to format: {e}"}
 
-    finally:
-        if was_opened:
-            try:
-                wb.close()
-            except Exception:
-                pass
 
-
-def _apply_borders(rng, borders_config):
+def _apply_borders_live(rng, borders_config):
     for position, config in borders_config.items():
         if not config:
             continue
@@ -174,6 +163,40 @@ def _apply_borders(rng, borders_config):
                 pass
 
 
+# ---------------------------------------------------------------------------
+# xlsx_io (file-based, pure Python ZIP/XML, no Excel needed)
+# ---------------------------------------------------------------------------
+
+def _format_file(path, cell_range, fmt, sheet):
+    from xlsx_io import XlsxFile
+
+    if not os.path.exists(path):
+        return {"error": f"File not found: {path}"}
+
+    try:
+        xf = XlsxFile(path).open()
+    except Exception as e:
+        return {"error": f"Cannot open file: {e}"}
+
+    try:
+        sheet_name = sheet or xf.sheet_names[0]
+        if sheet_name not in xf.sheet_names:
+            return {"error": f"Sheet '{sheet_name}' not found"}
+
+        xf.apply_format(sheet_name, cell_range, fmt)
+        xf.save()
+
+        return {"success": True, "path": path, "sheet": sheet_name, "range": cell_range}
+    except Exception as e:
+        return {"error": f"Failed to format: {e}"}
+    finally:
+        xf.close()
+
+
+# ---------------------------------------------------------------------------
+# main
+# ---------------------------------------------------------------------------
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--workbook', default=None)
@@ -193,7 +216,11 @@ def main():
         output_json({"error": "Invalid JSON for format"})
         return
 
-    result = format_cells(args.workbook, args.path, args.range, fmt, args.sheet)
+    if args.path:
+        result = _format_file(args.path, args.range, fmt, args.sheet)
+    else:
+        result = _format_live(args.workbook, args.range, fmt, args.sheet)
+
     output_json(result)
 
 

@@ -156,125 +156,36 @@ def _alignment_live(cell):
 
 
 # ---------------------------------------------------------------------------
-# openpyxl (file-based read-only, no Excel needed)
+# xlsx_io (file-based, pure Python ZIP/XML, no Excel needed)
 # ---------------------------------------------------------------------------
 
 def _read_file(path, cell_range, sheet, include_formats):
-    import openpyxl
-    from openpyxl.utils import range_boundaries
+    from xlsx_io import XlsxFile
 
     if not os.path.exists(path):
         return {"error": f"File not found: {path}"}
 
     try:
-        wb = openpyxl.load_workbook(path, read_only=not include_formats, data_only=True)
+        xf = XlsxFile(path).open()
     except Exception as e:
         return {"error": f"Cannot open file: {e}"}
 
-    # Get sheet
-    if sheet:
-        if sheet not in wb.sheetnames:
-            wb.close()
-            return {"error": f"Sheet '{sheet}' not found"}
-        ws = wb[sheet]
-    else:
-        ws = wb.active
-
     try:
-        min_col, min_row, max_col, max_row = range_boundaries(cell_range)
+        sheet_name = sheet or xf.sheet_names[0]
+        if sheet_name not in xf.sheet_names:
+            return {"error": f"Sheet '{sheet_name}' not found"}
+
+        values = xf.read_values(sheet_name, cell_range)
+        result = {"path": path, "sheet": sheet_name, "range": cell_range, "values": values}
+
+        if include_formats:
+            result["formats"] = xf.read_formats(sheet_name, cell_range)
+
+        return result
     except Exception as e:
-        wb.close()
-        return {"error": f"Invalid range '{cell_range}': {e}"}
-
-    values = []
-    for row in ws.iter_rows(min_row=min_row, max_row=max_row, min_col=min_col, max_col=max_col):
-        values.append([clean_value(cell.value) for cell in row])
-
-    result = {"path": path, "sheet": ws.title, "range": cell_range, "values": values}
-
-    if include_formats:
-        result["formats"] = _read_formats_file(ws, min_row, min_col, max_row, max_col)
-
-    wb.close()
-    return result
-
-
-def _read_formats_file(ws, r1, c1, r2, c2):
-    from openpyxl.utils import get_column_letter
-
-    formats = []
-    for row in range(r1, r2 + 1):
-        for col in range(c1, c2 + 1):
-            cell = ws.cell(row=row, column=col)
-            fmt = {}
-
-            # Background
-            try:
-                fill = cell.fill
-                if fill and fill.fgColor and fill.fgColor.rgb and fill.fgColor.rgb != '00000000':
-                    rgb = str(fill.fgColor.rgb)
-                    if len(rgb) == 8:
-                        rgb = rgb[2:]
-                    fmt["bg"] = f"#{rgb.lower()}"
-            except Exception:
-                pass
-
-            # Font
-            try:
-                font = cell.font
-                if font.bold:
-                    fmt["bold"] = True
-                if font.italic:
-                    fmt["italic"] = True
-                if font.size:
-                    fmt["fontSize"] = font.size
-                if font.name:
-                    fmt["fontName"] = font.name
-                if font.color and font.color.rgb:
-                    rgb = str(font.color.rgb)
-                    if len(rgb) == 8:
-                        rgb = rgb[2:]
-                    if rgb.lower() != "000000":
-                        fmt["fontColor"] = f"#{rgb.lower()}"
-            except Exception:
-                pass
-
-            # Number format
-            try:
-                nf = cell.number_format
-                if nf and nf != "General":
-                    fmt["numberFormat"] = nf
-            except Exception:
-                pass
-
-            # Borders
-            try:
-                border = cell.border
-                borders = {}
-                for side_name in ("top", "bottom", "left", "right"):
-                    side = getattr(border, side_name, None)
-                    if side and side.style and side.style != "none":
-                        borders[side_name] = side.style
-                if borders:
-                    fmt["borders"] = borders
-            except Exception:
-                pass
-
-            # Alignment
-            try:
-                align = cell.alignment
-                if align.horizontal and align.horizontal != "general":
-                    fmt["textAlign"] = align.horizontal
-                if align.vertical and align.vertical not in ("bottom", None):
-                    fmt["verticalAlign"] = align.vertical
-            except Exception:
-                pass
-
-            if fmt:
-                fmt["cell"] = f"{get_column_letter(col)}{row}"
-                formats.append(fmt)
-
-    return formats
+        return {"error": f"Failed to read: {e}"}
+    finally:
+        xf.close()
 
 
 # ---------------------------------------------------------------------------
