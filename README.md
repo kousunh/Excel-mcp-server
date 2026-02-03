@@ -1,193 +1,96 @@
 *[日本語 README](README_ja.md)*
 
-A comprehensive Model Context Protocol (MCP) server for Microsoft Excel operations. Enables AI assistants to perform data analysis, cell editing, formatting, border styling, VBA execution, and complete worksheet management through a structured workflow.
+# Excel MCP Server
 
-## Key Features
+A cross-platform MCP server for reading, writing, and formatting Excel files. Works with both open Excel workbooks (live) and closed .xlsx files (no Excel needed).
 
-### Prioritized Workflow Tools
-- **Step 1**: `essential_inspect_excel_data` - MANDATORY first step for understanding data structure
-- **Final Step**: `essential_check_excel_format` - MANDATORY final verification of layout and formatting
+## Two Modes
 
-### Advanced Excel Operations
-- **Data Analysis & Reading** - Comprehensive sheet analysis with statistics
-- **Cell Editing** - Single cell or range editing with array support
-- **Formatting Control** - Font colors, background colors, text styles, alignment
-- **Border Management** - Complete border styling with multiple styles and colors
-- **VBA Execution** - Simplified and stable VBA code execution
-- **Workbook Management** - Multi-workbook handling and navigation
+- **`workbook`** — Operate on an open Excel workbook in real-time via xlwings
+- **`path`** — Edit closed .xlsx files directly using pure Python (preserves images, charts, and all embedded content)
+
+## Tools
+
+| Tool | workbook | path | Required |
+|------|:--------:|:----:|----------|
+| `get_excel_info` | - | - | (none) |
+| `read_cells` | OK | OK | range |
+| `write_cells` | OK | OK | range, value |
+| `format_cells` | OK | OK | range, format |
+| `execute_vba` | OK | - | workbook, code |
 
 ## Requirements
 
-- **Windows OS** (Required for COM integration)
-- **Microsoft Excel** installed and running
-- **Node.js** 18 or higher
-- **Python** 3.8 or higher
+- **Node.js** 18+
+- **Python** 3.8+
+- **xlwings** (for live Excel mode — `pip install xlwings`)
+- **Microsoft Excel** (only needed for `workbook` mode and `execute_vba`)
+
+Works on **Windows** and **macOS**. The `path` mode also works on Linux.
 
 ## Installation
-
-### 1. Clone the repository
 
 ```bash
 git clone https://github.com/kousunh/excel-mcp-server.git
 cd excel-mcp-server
+npm install
+pip install -r scripts/requirements.txt
 ```
 
-### 2. Run setup script
+### Configure MCP Client
 
-The setup script will create a Python virtual environment and install all dependencies.
-
-**Windows (Command Prompt):**
-```cmd
-setup.bat
-```
-
-**Windows (PowerShell):**
-```powershell
-.\setup.bat
-```
-
-**Linux/Mac (WSL):**
-```bash
-./setup.sh
-```
-
-### 3. Configure Claude Desktop
-
-Add to your `claude_desktop_config.json`:
+Add to your MCP client config (Claude Desktop, Cursor, etc.):
 
 ```json
 {
   "mcpServers": {
     "excel-mcp": {
       "command": "node",
-      "args": ["C:/path/to/excel-mcp-server/src/index.js"],
-      "env": {},
-      "cwd": "C:/path/to/excel-mcp-server"
+      "args": ["/path/to/excel-mcp-server/src/index.js"]
     }
   }
 }
 ```
 
-### 4. Configure Cursor
-
-Add to your Cursor settings:
+To use a specific Python executable, set the `EXCEL_MCP_PYTHON` environment variable:
 
 ```json
 {
   "mcpServers": {
-    "Excel-mcp": {
+    "excel-mcp": {
       "command": "node",
-      "args": [
-        "C:\\path\\to\\excel-mcp-server\\src\\index.js"
-      ]
+      "args": ["/path/to/excel-mcp-server/src/index.js"],
+      "env": {
+        "EXCEL_MCP_PYTHON": "/path/to/python"
+      }
     }
   }
 }
 ```
 
-## Available Tools
+## Usage
 
-### Priority Tools (Use in Order)
+### Closed files (path mode)
 
-#### `essential_inspect_excel_data` - STEP 1 - ALWAYS USE FIRST
-Analyzes Excel data structure and content before any operations. Essential for understanding current state, sheet structure, data types, and content. Works with both open and closed files.
-
-#### `essential_check_excel_format` - FINAL STEP - MANDATORY VERIFICATION
-Validates layout and formatting after any changes. Use multiple times to check different ranges. If layout/format issues found, fix and re-verify.
-
-### Core Operations
-
-#### `edit_cells`
-Edit single cells or ranges with optimized performance for large data operations.
-
-#### `set_cell_formats`
-Apply comprehensive formatting to cell ranges including font colors, background colors, bold, italic, underline, font size, font name, and text alignment.
-
-#### `set_cell_borders`
-Apply detailed border styling to cell ranges. Supports various border styles (thin, thick, medium, double, dotted, dashed) and colors for different positions (top, bottom, left, right, inside, outside).
-
-### Utility Tools
-
-#### `get_open_workbooks`
-Lists all currently open Excel workbooks.
-
-#### `set_active_workbook`
-Switches between open workbooks.
-
-#### `get_all_sheet_names`
-Lists all sheets in a workbook.
-
-#### `navigate_to_sheet`
-Switches to a specific sheet.
-
-#### `get_excel_status`
-Checks if Excel is running and responsive.
-
-### VBA Execution
-
-#### `execute_vba`
-Executes custom VBA code in Excel. Creates a temporary Sub procedure, executes it, and automatically cleans up. Supports error handling and unique procedure naming to avoid conflicts.
-
-## Usage Examples
-
-### Basic Workflow
 ```
-1. "First, analyze the current Excel data structure"
-2. "Edit cells A1:C3 with employee data"
-3. "Set borders around the data range"
-4. "Apply formatting with bold headers and colored backgrounds"
-5. "Finally, verify the layout and formatting"
+read_cells   path="/data/report.xlsx" range="A1:D20" formats=true
+write_cells  path="/data/report.xlsx" range="A1:C3" value=[["Name","Age","City"],["Alice",30,"NYC"],["Bob",25,"LA"]]
+format_cells path="/data/report.xlsx" range="A1:C1" format={"bold":true,"backgroundColor":"#4472C4","fontColor":"#FFFFFF"}
 ```
 
-### Data Operations
+No Excel installation required. Images, charts, and shapes are preserved.
+
+### Open workbooks (workbook mode)
+
 ```
-"Analyze the sales data in workbook 'Sales2024.xlsx'"
-"Edit range A1:D10 with quarterly sales figures"
-"Apply borders to create a table structure"
-"Format headers with bold font and blue background"
-"Verify the final layout looks correct"
+get_excel_info
+read_cells   workbook="Sales.xlsx" range="B2:F10"
+write_cells  workbook="Sales.xlsx" range="G2" value="=SUM(B2:F2)"
+execute_vba  workbook="Sales.xlsx" code="Range(\"A1:G10\").AutoFilter"
 ```
 
-## Workflow Best Practices
-
-1. **Always start** with `essential_inspect_excel_data` to understand current state
-2. **Use dedicated tools** (edit_cells, set_cell_formats, set_cell_borders) instead of VBA when possible
-3. **Always end** with `essential_check_excel_format` to confirm changes
-4. **Use execute_vba** for custom VBA logic when standard tools are insufficient
-5. **Verify multiple ranges** if working with large spreadsheets
-
-## Troubleshooting
-
-1. **Excel not found**: Ensure Excel is running with at least one workbook open
-2. **Tool timeouts**: Large operations automatically use extended timeouts (60 seconds)
-3. **VBA errors**: Simplified VBA execution reduces hanging and freezing issues
-4. **Format verification**: Use verification tool multiple times for different ranges
-5. **Permission errors**: Enable "Trust access to the VBA project object model" in Excel Trust Center
-
-## Security
-
-- Server operates only on local Excel files
-- VBA code runs in temporary modules that are automatically deleted
-- Python virtual environment isolates dependencies
-- No network access or external file operations
+Requires Excel to be running with the workbook open.
 
 ## License
 
-MIT License - see LICENSE file for details.
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly with Excel operations
-5. Submit a pull request
-
----
-
-**Version 2.0 Changes:**
-- Added prioritized workflow tools with clear naming
-- Implemented comprehensive formatting and border controls
-- Optimized performance for large data operations
-- Simplified and stabilized VBA execution
-- Added mandatory verification step for quality assurance
+MIT
