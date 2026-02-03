@@ -41,12 +41,12 @@ export const toolDefinitions = [
   },
   {
     name: 'read_cells',
-    description: 'Read cell values from a range. Use "workbook" for an open Excel workbook, or "path" for a file on disk. Set formats=true to include formatting details.',
+    description: 'Read cell values from a range. Use "workbook" for an open Excel workbook, or "path" for a .xlsx file on disk (Excel not required). Set formats=true to include formatting details.',
     inputSchema: {
       type: 'object',
       properties: {
         workbook: { type: 'string', description: 'Open workbook name (live Excel)' },
-        path: { type: 'string', description: 'File path to .xlsx (opens in Excel)' },
+        path: { type: 'string', description: 'File path to .xlsx (read-only, Excel not required)' },
         range: { type: 'string', description: 'Cell range (e.g. "A1" or "A1:C10")' },
         sheet: { type: 'string', description: 'Sheet name (default: active sheet)' },
         formats: { type: 'boolean', description: 'Include cell formatting (default: false)' }
