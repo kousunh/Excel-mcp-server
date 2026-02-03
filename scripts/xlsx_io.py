@@ -92,7 +92,10 @@ class XlsxFile:
         self._sheet_trees = {}   # zip_path -> ET root
         self._styles_tree = None
         self._styles_modified = False
+        self._styles_root_ns = []    # preserve styles.xml namespace declarations
         self._modified_sheets = set()
+        self._sheet_root_ns = {}  # zip_path -> [(prefix, uri), ...] original ns decls
+        self._removed_formulas = set()  # set of (sheet_zip_path, cell_ref) for calcChain cleanup
 
     def open(self):
         self._register_ns_from_zip()
@@ -106,14 +109,25 @@ class XlsxFile:
         return self
 
     def save(self):
-        # Serialize modified parts
+        # Serialize modified parts, restoring original namespace declarations
         for sp in self._modified_sheets:
             if sp in self._sheet_trees:
-                self._entries[sp] = _serialize(self._sheet_trees[sp])
+                raw = _serialize(self._sheet_trees[sp])
+                # Restore namespace declarations that ElementTree dropped
+                if sp in self._sheet_root_ns:
+                    raw = _restore_root_ns(raw, self._sheet_root_ns[sp])
+                self._entries[sp] = raw
         if self._ss_modified:
             self._serialize_ss()
         if self._styles_modified:
-            self._entries['xl/styles.xml'] = _serialize(self._styles_tree)
+            raw = _serialize(self._styles_tree)
+            if self._styles_root_ns:
+                raw = _restore_root_ns(raw, self._styles_root_ns)
+            self._entries['xl/styles.xml'] = raw
+
+        # Clean up calcChain.xml when formulas have been removed
+        if self._removed_formulas:
+            self._cleanup_calc_chain()
 
         # Ensure sharedStrings.xml is in [Content_Types].xml
         if self._ss_modified:
@@ -147,6 +161,9 @@ class XlsxFile:
     def _get_sheet_tree(self, name):
         sp = self._sheet_path(name)
         if sp not in self._sheet_trees:
+            # Preserve original namespace declarations before parsing
+            if sp not in self._sheet_root_ns:
+                self._sheet_root_ns[sp] = _extract_root_ns(self._entries[sp])
             self._sheet_trees[sp] = _parse(self._entries[sp])
         return sp, self._sheet_trees[sp]
 
@@ -247,10 +264,13 @@ class XlsxFile:
         self._modified_sheets.add(sp)
 
     def _set_cell_value(self, c_el, val):
-        # Remove formula if present
+        # Remove formula if present and track for calcChain cleanup
         f_el = c_el.find(_tag('f'))
         if f_el is not None:
             c_el.remove(f_el)
+            cell_ref_str = c_el.get('r', '')
+            if cell_ref_str:
+                self._removed_formulas.add(cell_ref_str)
 
         v_el = c_el.find(_tag('v'))
 
@@ -537,8 +557,11 @@ class XlsxFile:
         if 'wrapText' in fmt:
             align_props['wrapText'] = '1' if fmt['wrapText'] else '0'
 
+        # Carry forward xfId from base (references cellStyleXfs)
+        xf_id = base.get('xfId', '0')
+
         # Find or create matching xf
-        return self._find_or_add_xf(font_id, fill_id, border_id, num_fmt_id, align_props)
+        return self._find_or_add_xf(font_id, fill_id, border_id, num_fmt_id, align_props, xf_id)
 
     def _merge_font(self, base_font_id, fmt):
         """Create a new font by merging base font with new properties."""
@@ -642,15 +665,32 @@ class XlsxFile:
         self._styles_modified = True
         return idx
 
+    # Built-in number formats (do not need to be written to numFmts)
+    _BUILTIN_NUM_FMTS = {
+        'General': 0, '0': 1, '0.00': 2, '#,##0': 3, '#,##0.00': 4,
+        '#,##0_);(#,##0)': 5, '#,##0_);[Red](#,##0)': 6,
+        '#,##0.00_);(#,##0.00)': 7, '#,##0.00_);[Red](#,##0.00)': 8,
+        '0%': 9, '0.00%': 10, '0.00E+00': 11, '# ?/?': 12, '# ??/??': 13,
+        'mm-dd-yy': 14, 'd-mmm-yy': 15, 'd-mmm': 16, 'mmm-yy': 17,
+        'h:mm AM/PM': 18, 'h:mm:ss AM/PM': 19, 'h:mm': 20, 'h:mm:ss': 21,
+        'm/d/yy h:mm': 22,
+    }
+
     def _get_num_fmt_id(self, format_code):
+        # Check built-in formats first
+        if format_code in self._BUILTIN_NUM_FMTS:
+            return self._BUILTIN_NUM_FMTS[format_code]
+
         nfs = self._styles_tree.find(_tag('numFmts'))
         if nfs is None:
-            nfs = ET.SubElement(self._styles_tree, _tag('numFmts'))
-            # Insert numFmts at beginning of styleSheet
-            self._styles_tree.insert(0, nfs)
+            # Use ET.Element + insert instead of ET.SubElement to avoid
+            # the element appearing twice (SubElement appends, then insert
+            # would add a second reference).
+            nfs = ET.Element(_tag('numFmts'))
             nfs.set('count', '0')
+            self._styles_tree.insert(0, nfs)
 
-        # Check if already exists
+        # Check if already exists as custom format
         for nf in nfs.findall(_tag('numFmt')):
             if nf.get('formatCode') == format_code:
                 return int(nf.get('numFmtId'))
@@ -670,7 +710,7 @@ class XlsxFile:
         self._styles_modified = True
         return new_id
 
-    def _find_or_add_xf(self, font_id, fill_id, border_id, num_fmt_id, align_props):
+    def _find_or_add_xf(self, font_id, fill_id, border_id, num_fmt_id, align_props, xf_id='0'):
         xfs = self._styles_tree.find(_tag('cellXfs'))
         xf_list = xfs.findall(_tag('xf'))
 
@@ -697,6 +737,7 @@ class XlsxFile:
         new_xf.set('fontId', str(font_id))
         new_xf.set('fillId', str(fill_id))
         new_xf.set('borderId', str(border_id))
+        new_xf.set('xfId', xf_id)
         if font_id > 0:
             new_xf.set('applyFont', '1')
         if fill_id > 0:
@@ -788,6 +829,7 @@ class XlsxFile:
     def _parse_styles(self):
         data = self._entries.get('xl/styles.xml')
         if data:
+            self._styles_root_ns = _extract_root_ns(data)
             self._styles_tree = _parse(data)
         else:
             # Create minimal styles
@@ -808,6 +850,67 @@ class XlsxFile:
                     xf = ET.SubElement(el, _tag('xf'))
                     for attr in ('numFmtId', 'fontId', 'fillId', 'borderId'):
                         xf.set(attr, '0')
+
+    def _cleanup_calc_chain(self):
+        """Remove entries from calcChain.xml for cells whose formulas were removed."""
+        cc_data = self._entries.get('xl/calcChain.xml')
+        if not cc_data:
+            return
+
+        ns_cc = NS
+        tree = _parse(cc_data)
+        entries = tree.findall(_tag('c'))
+
+        # Remove entries for cells that had formulas removed
+        removed_any = False
+        for entry in entries:
+            ref = entry.get('r', '')
+            if ref in self._removed_formulas:
+                tree.remove(entry)
+                removed_any = True
+
+        if not removed_any:
+            return
+
+        # If no entries left, remove calcChain.xml entirely
+        remaining = tree.findall(_tag('c'))
+        if not remaining:
+            del self._entries['xl/calcChain.xml']
+            if 'xl/calcChain.xml' in self._compress:
+                del self._compress['xl/calcChain.xml']
+            # Remove from [Content_Types].xml
+            self._remove_content_type('xl/calcChain.xml')
+            # Remove relationship from workbook.xml.rels
+            self._remove_workbook_rel_by_target('calcChain.xml')
+        else:
+            self._entries['xl/calcChain.xml'] = _serialize(tree)
+
+    def _remove_content_type(self, part_name):
+        """Remove a part from [Content_Types].xml."""
+        ct_data = self._entries.get('[Content_Types].xml')
+        if not ct_data:
+            return
+        ns_ct = 'http://schemas.openxmlformats.org/package/2006/content-types'
+        ET.register_namespace('', ns_ct)
+        tree = _parse(ct_data)
+        for ov in tree.findall(f'{{{ns_ct}}}Override'):
+            if ov.get('PartName') == f'/{part_name}':
+                tree.remove(ov)
+                self._entries['[Content_Types].xml'] = _serialize(tree)
+                return
+
+    def _remove_workbook_rel_by_target(self, target):
+        """Remove a relationship from xl/_rels/workbook.xml.rels by target."""
+        rels_data = self._entries.get('xl/_rels/workbook.xml.rels')
+        if not rels_data:
+            return
+        tree = _parse(rels_data)
+        for rel in tree.findall(f'{{{NS_REL}}}Relationship'):
+            t = rel.get('Target', '')
+            if t == target or t.endswith('/' + target):
+                tree.remove(rel)
+                self._entries['xl/_rels/workbook.xml.rels'] = _serialize(tree)
+                return
 
     def _ensure_content_type(self, part_name, content_type):
         """Ensure a part is registered in [Content_Types].xml."""
@@ -831,6 +934,75 @@ class XlsxFile:
 # ---------------------------------------------------------------------------
 # Module-level helpers
 # ---------------------------------------------------------------------------
+
+def _extract_root_ns(data):
+    """Extract namespace declarations from the root element of XML bytes."""
+    if isinstance(data, str):
+        data = data.encode('utf-8')
+    text = data.decode('utf-8', errors='replace')
+    # Find the first opening tag (skip XML declaration)
+    m = re.search(r'<([a-zA-Z][\w]*)', text)
+    if not m:
+        return []
+    # Extract the full opening tag
+    start = m.start()
+    end = text.find('>', start)
+    if end < 0:
+        return []
+    root_tag = text[start:end + 1]
+    # Extract all xmlns declarations
+    ns_decls = []
+    for nm in re.finditer(r'xmlns(?::(\w+))?=["\']([^"\']+)["\']', root_tag):
+        prefix = nm.group(1) or ''  # '' for default namespace
+        uri = nm.group(2)
+        ns_decls.append((prefix, uri))
+    return ns_decls
+
+
+def _restore_root_ns(data, original_ns):
+    """Restore missing namespace declarations on the root element."""
+    if not original_ns:
+        return data
+    text = data.decode('utf-8') if isinstance(data, bytes) else data
+
+    # Find current namespace declarations on root element
+    m = re.search(r'<([a-zA-Z][\w]*)', text)
+    if not m:
+        return data if isinstance(data, bytes) else data.encode('utf-8')
+    start = m.start()
+    end = text.find('>', start)
+    if end < 0:
+        return data if isinstance(data, bytes) else data.encode('utf-8')
+    root_tag = text[start:end + 1]
+
+    # Find existing namespace declarations
+    existing_ns = set()
+    for nm in re.finditer(r'xmlns(?::(\w+))?=["\']([^"\']+)["\']', root_tag):
+        prefix = nm.group(1) or ''
+        existing_ns.add(prefix)
+
+    # Build missing declarations
+    missing = []
+    for prefix, uri in original_ns:
+        if prefix not in existing_ns:
+            if prefix:
+                missing.append(f'xmlns:{prefix}="{uri}"')
+            else:
+                missing.append(f'xmlns="{uri}"')
+
+    if not missing:
+        return data if isinstance(data, bytes) else data.encode('utf-8')
+
+    # Insert missing declarations before the closing > or />
+    insert_str = ' ' + ' '.join(missing)
+    if root_tag.endswith('/>'):
+        new_root = root_tag[:-2] + insert_str + ' />'
+    else:
+        new_root = root_tag[:-1] + insert_str + '>'
+
+    text = text[:start] + new_root + text[end + 1:]
+    return text.encode('utf-8') if isinstance(data, bytes) else text
+
 
 def _parse(data):
     """Parse XML bytes into ElementTree root."""
