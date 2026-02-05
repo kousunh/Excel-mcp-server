@@ -28,7 +28,7 @@ def clean_value(val):
 # xlwings (live Excel / workbook mode)
 # ---------------------------------------------------------------------------
 
-def _read_live(workbook, cell_range, sheet, include_formats):
+def _read_live(workbook, cell_range, sheet, include_formats, values_only=False):
     app, err = get_app()
     if err:
         return {"error": err}
@@ -44,7 +44,7 @@ def _read_live(workbook, cell_range, sheet, include_formats):
     except Exception as e:
         return {"error": f"Invalid range '{cell_range}': {e}"}
 
-    values = _xlwings_values(rng)
+    values = _xlwings_values(rng, values_only=values_only)
 
     result = {"workbook": wb.name, "sheet": ws.name, "range": cell_range, "values": values}
 
@@ -58,16 +58,32 @@ def _read_live(workbook, cell_range, sheet, include_formats):
     return result
 
 
-def _xlwings_values(rng):
-    raw = rng.value
-    if rng.shape[0] == 1 and rng.shape[1] == 1:
-        return [[clean_value(raw)]]
-    elif rng.shape[0] == 1:
-        return [[clean_value(v) for v in raw]]
-    elif rng.shape[1] == 1:
-        return [[clean_value(v)] for v in raw]
-    else:
-        return [[clean_value(v) for v in row] for row in raw]
+def _xlwings_values(rng, values_only=False):
+    """Get cell values or formulas from range.
+
+    If values_only=False (default), returns formulas where they exist, otherwise values.
+    If values_only=True, returns only calculated values.
+    """
+    rows, cols = rng.shape
+    result = []
+
+    for r in range(rows):
+        row_data = []
+        for c in range(cols):
+            cell = rng[r, c]
+            if values_only:
+                # Return calculated value
+                row_data.append(clean_value(cell.value))
+            else:
+                # Return formula if exists, otherwise value
+                formula = cell.formula
+                if formula and isinstance(formula, str) and formula.startswith('='):
+                    row_data.append(formula)
+                else:
+                    row_data.append(clean_value(cell.value))
+        result.append(row_data)
+
+    return result
 
 
 def _read_formats_live(sheet, r1, c1, r2, c2):
@@ -199,6 +215,8 @@ def main():
     parser.add_argument('--range', required=True)
     parser.add_argument('--sheet', default=None)
     parser.add_argument('--formats', action='store_true')
+    parser.add_argument('--values-only', action='store_true',
+                        help='Return calculated values instead of formulas (default: return formulas)')
     args = parser.parse_args()
 
     if not args.workbook and not args.path:
@@ -208,7 +226,8 @@ def main():
     if args.path:
         result = _read_file(args.path, args.range, args.sheet, args.formats)
     else:
-        result = _read_live(args.workbook, args.range, args.sheet, args.formats)
+        result = _read_live(args.workbook, args.range, args.sheet, args.formats,
+                           values_only=args.values_only)
 
     output_json(result)
 

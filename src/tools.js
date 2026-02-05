@@ -6,7 +6,8 @@ export const schemas = {
     path: z.string().optional(),
     range: z.string(),
     sheet: z.string().optional(),
-    formats: z.boolean().optional()
+    formats: z.boolean().optional(),
+    valuesOnly: z.boolean().optional()
   }),
   writeCells: z.object({
     workbook: z.string().optional(),
@@ -41,7 +42,7 @@ export const toolDefinitions = [
   },
   {
     name: 'read_cells',
-    description: 'Read cell values from a range. Use "workbook" for an open Excel workbook, or "path" for a .xlsx file on disk (no Excel needed, preserves images/charts). Set formats=true to include formatting details.',
+    description: 'Read cell formulas/values from a range. By default returns formulas where they exist. Use "workbook" for an open Excel workbook, or "path" for a .xlsx file on disk (no Excel needed, preserves images/charts). Set valuesOnly=true to get calculated values instead of formulas. Set formats=true to include formatting details.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -49,7 +50,8 @@ export const toolDefinitions = [
         path: { type: 'string', description: 'File path to .xlsx (no Excel needed)' },
         range: { type: 'string', description: 'Cell range (e.g. "A1" or "A1:C10")' },
         sheet: { type: 'string', description: 'Sheet name (default: active sheet)' },
-        formats: { type: 'boolean', description: 'Include cell formatting (default: false)' }
+        formats: { type: 'boolean', description: 'Include cell formatting (default: false)' },
+        valuesOnly: { type: 'boolean', description: 'Return calculated values instead of formulas (default: false, returns formulas)' }
       },
       required: ['range']
     }

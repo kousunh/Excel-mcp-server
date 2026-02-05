@@ -68,6 +68,7 @@ export class ToolHandlers {
     const a = [...this._target(v), '--range', v.range];
     if (v.sheet) a.push('--sheet', v.sheet);
     if (v.formats) a.push('--formats');
+    if (v.valuesOnly) a.push('--values-only');
     return this._run('read_cells.py', a);
   }
 
