@@ -27,16 +27,23 @@ def _write_live(workbook, cell_range, value, sheet):
     if err:
         return {"error": err}
 
-    perf = set_performance_mode(wb.app, True)
     try:
-        try:
-            rng = ws.range(cell_range)
-        except Exception as e:
-            return {"error": f"Invalid range '{cell_range}': {e}"}
+        rng = ws.range(cell_range)
+    except Exception as e:
+        return {"error": f"Invalid range '{cell_range}': {e}"}
 
-        rows, cols = rng.shape
+    rows, cols = rng.shape
+    # Skip performance mode for small writes (avoids changing calculation mode)
+    use_perf = rows * cols > 100
+    perf = set_performance_mode(wb.app, use_perf)
+    try:
         value = _reshape(value, rows, cols)
         rng.value = value
+
+        # Restore performance mode BEFORE save so the file is saved
+        # with the original calculation setting intact
+        restore_performance_mode(wb.app, perf)
+        perf = None  # prevent double-restore in finally
 
         wb.save()
 

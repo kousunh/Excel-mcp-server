@@ -137,7 +137,12 @@ def output_json(result):
 
 
 def set_performance_mode(app, enable):
-    """Toggle Excel performance mode."""
+    """Toggle Excel performance mode.
+
+    Only use for large writes (100+ cells).  For small/single-cell writes
+    the overhead is unnecessary and it changes the user-visible calculation
+    mode (xlCalculationManual) which is confusing.
+    """
     if not enable:
         return None
     try:
@@ -164,5 +169,7 @@ def restore_performance_mode(app, settings):
             app.api.Application.Calculation = settings[1]
         else:
             app.screen_updating = True
-    except Exception:
-        pass
+    except Exception as e:
+        # Log but don't crash – the write itself succeeded
+        import sys
+        print(f"Warning: failed to restore Excel settings: {e}", file=sys.stderr)
