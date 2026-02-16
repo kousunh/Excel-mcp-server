@@ -756,6 +756,146 @@ class XlsxFile:
         xfs.set('count', str(idx + 1))
         return idx
 
+    # -- Scanning / searching --
+
+    def scan_sheet(self, sheet_name):
+        """Return structural overview of a sheet."""
+        _, tree = self._get_sheet_tree(sheet_name)
+
+        result = {}
+
+        # 1. Dimension from <dimension ref="..."/>
+        dim_el = tree.find(_tag('dimension'))
+        if dim_el is not None:
+            result['dimension'] = dim_el.get('ref', '')
+
+        # 2. Merged cells from <mergeCells>
+        merge_cells_el = tree.find(_tag('mergeCells'))
+        merged = []
+        if merge_cells_el is not None:
+            for mc in merge_cells_el.findall(_tag('mergeCell')):
+                ref = mc.get('ref', '')
+                if ref:
+                    merged.append(ref)
+        result['mergedCells'] = merged
+
+        # 3. Actual data extent by scanning rows
+        sheet_data = tree.find(_tag('sheetData'))
+        min_row = max_row = min_col = max_col = None
+        non_empty_rows = 0
+        total_cells = 0
+
+        if sheet_data is not None:
+            for row_el in sheet_data.findall(_tag('row')):
+                rn = int(row_el.get('r'))
+                row_has_data = False
+                for cell_el in row_el.findall(_tag('c')):
+                    ref = cell_el.get('r', '')
+                    v_el = cell_el.find(_tag('v'))
+                    f_el = cell_el.find(_tag('f'))
+                    is_el = cell_el.find(_tag('is'))
+                    if v_el is not None or f_el is not None or is_el is not None:
+                        try:
+                            cr, cc = parse_cell_ref(ref)
+                        except ValueError:
+                            continue
+                        row_has_data = True
+                        total_cells += 1
+                        if min_row is None or cr < min_row:
+                            min_row = cr
+                        if max_row is None or cr > max_row:
+                            max_row = cr
+                        if min_col is None or cc < min_col:
+                            min_col = cc
+                        if max_col is None or cc > max_col:
+                            max_col = cc
+                if row_has_data:
+                    non_empty_rows += 1
+
+        if min_row is not None:
+            result['dataRange'] = f"{cell_ref(min_row, min_col)}:{cell_ref(max_row, max_col)}"
+            result['rowCount'] = max_row - min_row + 1
+            result['colCount'] = max_col - min_col + 1
+        else:
+            result['dataRange'] = None
+            result['rowCount'] = 0
+            result['colCount'] = 0
+        result['nonEmptyRows'] = non_empty_rows
+        result['totalCells'] = total_cells
+
+        # 4. Column widths from <cols>
+        cols_el = tree.find(_tag('cols'))
+        col_widths = []
+        if cols_el is not None:
+            for col_el in cols_el.findall(_tag('col')):
+                col_widths.append({
+                    'min': int(col_el.get('min', '1')),
+                    'max': int(col_el.get('max', '1')),
+                    'width': float(col_el.get('width', '8.43')),
+                    'hidden': col_el.get('hidden') == '1'
+                })
+        result['columnWidths'] = col_widths
+
+        # 5. Hidden rows
+        hidden_rows = []
+        if sheet_data is not None:
+            for row_el in sheet_data.findall(_tag('row')):
+                if row_el.get('hidden') == '1':
+                    hidden_rows.append(int(row_el.get('r')))
+        if hidden_rows:
+            result['hiddenRows'] = hidden_rows
+
+        return result
+
+    def find_cells(self, sheet_name, query, is_regex=False, search_range=None, max_results=100):
+        """Search for cells matching a value or pattern."""
+        _, tree = self._get_sheet_tree(sheet_name)
+
+        if search_range:
+            c1, r1, c2, r2 = parse_range(search_range)
+        else:
+            c1, r1, c2, r2 = 1, 1, 16384, 1048576
+
+        if is_regex:
+            import re as re_mod
+            pattern = re_mod.compile(query)
+
+        matches = []
+
+        for row_el in tree.iter(_tag('row')):
+            rn = int(row_el.get('r'))
+            if rn < r1 or rn > r2:
+                continue
+            for cell_el in row_el.iter(_tag('c')):
+                ref = cell_el.get('r', '')
+                try:
+                    cr, cc = parse_cell_ref(ref)
+                except ValueError:
+                    continue
+                if cc < c1 or cc > c2:
+                    continue
+
+                val = self._cell_value(cell_el)
+                if val is None:
+                    continue
+
+                val_str = str(val)
+                matched = False
+
+                if is_regex:
+                    if pattern.search(val_str):
+                        matched = True
+                else:
+                    if val_str == query or val == query:
+                        matched = True
+
+                if matched:
+                    matches.append({'cell': ref.replace('$', ''), 'value': val})
+                    if len(matches) >= max_results:
+                        return matches
+
+        return matches
+
     # -- Internal helpers --
 
     def _register_ns_from_zip(self):

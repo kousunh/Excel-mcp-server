@@ -93,4 +93,21 @@ export class ToolHandlers {
     if (v.sheet) a.push('--sheet', v.sheet);
     return this._run('execute_vba.py', a, 60000);
   }
+
+  async scanSheet(args) {
+    const v = schemas.scanSheet.parse(args);
+    const a = [...this._target(v)];
+    if (v.sheet) a.push('--sheet', v.sheet);
+    return this._run('scan_sheet.py', a);
+  }
+
+  async findCells(args) {
+    const v = schemas.findCells.parse(args);
+    const a = [...this._target(v), '--query', v.query];
+    if (v.sheet) a.push('--sheet', v.sheet);
+    if (v.range) a.push('--range', v.range);
+    if (v.regex) a.push('--regex');
+    if (v.maxResults) a.push('--max', String(v.maxResults));
+    return this._run('find_cells.py', a);
+  }
 }

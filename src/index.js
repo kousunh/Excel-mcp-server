@@ -28,6 +28,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     case 'write_cells':     return handlers.writeCells(args);
     case 'format_cells':    return handlers.formatCells(args);
     case 'execute_vba':     return handlers.executeVba(args);
+    case 'scan_sheet':      return handlers.scanSheet(args);
+    case 'find_cells':      return handlers.findCells(args);
     default: throw new Error(`Unknown tool: ${name}`);
   }
 });

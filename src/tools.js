@@ -27,6 +27,20 @@ export const schemas = {
     workbook: z.string(),
     code: z.string(),
     sheet: z.string().optional()
+  }),
+  scanSheet: z.object({
+    workbook: z.string().optional(),
+    path: z.string().optional(),
+    sheet: z.string().optional()
+  }),
+  findCells: z.object({
+    workbook: z.string().optional(),
+    path: z.string().optional(),
+    query: z.string(),
+    sheet: z.string().optional(),
+    range: z.string().optional(),
+    regex: z.boolean().optional(),
+    maxResults: z.number().optional()
   })
 };
 
@@ -128,6 +142,36 @@ export const toolDefinitions = [
         sheet: { type: 'string', description: 'Sheet to activate before execution' }
       },
       required: ['workbook', 'code']
+    }
+  },
+  {
+    name: 'scan_sheet',
+    description: 'Get sheet structure overview: dimensions, merged cells, data extent, column widths. Use "workbook" for live Excel or "path" for a .xlsx file on disk. If no sheet is specified, returns overview of ALL sheets in the workbook.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        workbook: { type: 'string', description: 'Open workbook name (live Excel)' },
+        path: { type: 'string', description: 'File path to .xlsx (no Excel needed)' },
+        sheet: { type: 'string', description: 'Sheet name. If omitted, scans all sheets.' }
+      },
+      required: []
+    }
+  },
+  {
+    name: 'find_cells',
+    description: 'Search for cells matching a value or regex pattern. Use "workbook" for live Excel or "path" for a .xlsx file on disk. Returns matching cell references with values. Set regex=true for pattern matching.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        workbook: { type: 'string', description: 'Open workbook name (live Excel)' },
+        path: { type: 'string', description: 'File path to .xlsx (no Excel needed)' },
+        query: { type: 'string', description: 'Value to search for, or regex pattern if regex=true' },
+        sheet: { type: 'string', description: 'Sheet name (default: first sheet)' },
+        range: { type: 'string', description: 'Limit search to this range (e.g. "A1:Z100")' },
+        regex: { type: 'boolean', description: 'Treat query as regex pattern (default: false)' },
+        maxResults: { type: 'number', description: 'Maximum results to return (default: 100)' }
+      },
+      required: ['query']
     }
   }
 ];
