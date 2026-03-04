@@ -80,7 +80,7 @@ export const toolDefinitions = [
         path: { type: 'string', description: 'File path to .xlsx (no Excel needed)' },
         range: { type: 'string', description: 'Cell range (e.g. "A1" or "A1:B5")' },
         value: {
-          oneOf: [{ type: 'string' }, { type: 'number' }, { type: 'boolean' }, { type: 'array' }],
+          oneOf: [{ type: 'string' }, { type: 'number' }, { type: 'boolean' }, { type: 'array', items: {} }],
           description: 'Value(s) to write'
         },
         sheet: { type: 'string', description: 'Sheet name (default: active sheet)' }
